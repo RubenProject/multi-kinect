@@ -1,0 +1,11 @@
+NiTE2/
+NiTE2_Documentation/
+NiTE2_Include/
+OpenNI2/
+OpenNI2_Include/
+OpenNI2_Documentation/
+Qt/
+
+*.ini
+*.o
+Protonect
