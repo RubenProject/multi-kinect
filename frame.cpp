@@ -69,27 +69,24 @@ unsigned char *Frame::getData() const
 }
 
 
-bool Frame::drawSkeleton(const nite::UserTracker &tUserTracker, const nite::Skeleton &tSkeleton)
+void Frame::drawSkeleton(const nite::UserTracker &tUserTracker, const Body &tBody)
 {
-    if (tSkeleton.getState() != nite::SKELETON_TRACKED)                                                                             
-        return false;
+     glm::vec3 pHEAD = tBody.getJointAbsPosition(nite::JOINT_HEAD);
+     glm::vec3 pNECK = tBody.getJointAbsPosition(nite::JOINT_NECK);
+     glm::vec3 pL_SHOULDER = tBody.getJointAbsPosition(nite::JOINT_LEFT_SHOULDER);
+     glm::vec3 pR_SHOULDER = tBody.getJointAbsPosition(nite::JOINT_RIGHT_SHOULDER);
+     glm::vec3 pL_ELBOW = tBody.getJointAbsPosition(nite::JOINT_LEFT_ELBOW);
+     glm::vec3 pR_ELBOW = tBody.getJointAbsPosition(nite::JOINT_RIGHT_ELBOW);
+     glm::vec3 pL_HAND = tBody.getJointAbsPosition(nite::JOINT_LEFT_HAND);
+     glm::vec3 pR_HAND = tBody.getJointAbsPosition(nite::JOINT_RIGHT_HAND);
+     glm::vec3 pTORSO = tBody.getJointAbsPosition(nite::JOINT_TORSO);
+     glm::vec3 pL_HIP = tBody.getJointAbsPosition(nite::JOINT_LEFT_HIP);
+     glm::vec3 pR_HIP = tBody.getJointAbsPosition(nite::JOINT_RIGHT_HIP);
+     glm::vec3 pL_KNEE = tBody.getJointAbsPosition(nite::JOINT_LEFT_KNEE);
+     glm::vec3 pR_KNEE = tBody.getJointAbsPosition(nite::JOINT_RIGHT_KNEE);
+     glm::vec3 pL_FOOT = tBody.getJointAbsPosition(nite::JOINT_LEFT_FOOT);
+     glm::vec3 pR_FOOT = tBody.getJointAbsPosition(nite::JOINT_RIGHT_FOOT);
 
-     const nite::Point3f &pHEAD = tSkeleton.getJoint(nite::JOINT_HEAD).getPosition();
-     const nite::Point3f &pNECK = tSkeleton.getJoint(nite::JOINT_NECK).getPosition();
-     const nite::Point3f &pL_SHOULDER = tSkeleton.getJoint(nite::JOINT_LEFT_SHOULDER).getPosition();
-     const nite::Point3f &pR_SHOULDER = tSkeleton.getJoint(nite::JOINT_RIGHT_SHOULDER).getPosition();
-     const nite::Point3f &pL_ELBOW = tSkeleton.getJoint(nite::JOINT_LEFT_ELBOW).getPosition();
-     const nite::Point3f &pR_ELBOW = tSkeleton.getJoint(nite::JOINT_RIGHT_ELBOW).getPosition();
-     const nite::Point3f &pL_HAND = tSkeleton.getJoint(nite::JOINT_LEFT_HAND).getPosition();
-     const nite::Point3f &pR_HAND = tSkeleton.getJoint(nite::JOINT_RIGHT_HAND).getPosition();
-     const nite::Point3f &pTORSO = tSkeleton.getJoint(nite::JOINT_TORSO).getPosition();
-     const nite::Point3f &pL_HIP = tSkeleton.getJoint(nite::JOINT_LEFT_HIP).getPosition();
-     const nite::Point3f &pR_HIP = tSkeleton.getJoint(nite::JOINT_RIGHT_HIP).getPosition();
-     const nite::Point3f &pL_KNEE = tSkeleton.getJoint(nite::JOINT_LEFT_KNEE).getPosition();
-     const nite::Point3f &pR_KNEE = tSkeleton.getJoint(nite::JOINT_RIGHT_KNEE).getPosition();
-     const nite::Point3f &pL_FOOT = tSkeleton.getJoint(nite::JOINT_LEFT_FOOT).getPosition();
-     const nite::Point3f &pR_FOOT = tSkeleton.getJoint(nite::JOINT_RIGHT_FOOT).getPosition();
- 
      cv::Point2f HEAD;
      cv::Point2f NECK;
      cv::Point2f L_SHOULDER;
@@ -155,7 +152,5 @@ bool Frame::drawSkeleton(const nite::UserTracker &tUserTracker, const nite::Skel
      cv::line(*mFrame, L_KNEE, L_FOOT, cv::Scalar(0, 0, 256), LINE_THICKNESS);
      cv::line(*mFrame, R_HIP, R_KNEE, cv::Scalar(0, 0, 256), LINE_THICKNESS);
      cv::line(*mFrame, R_KNEE, R_FOOT, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-
-     return true;
 }
 

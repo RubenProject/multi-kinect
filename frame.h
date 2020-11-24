@@ -1,5 +1,6 @@
 #pragma once
 
+#include "body.h"
 #include "OpenNI.h"
 #include "NiTE.h"
 #include <opencv2/core.hpp>
@@ -17,7 +18,7 @@ public:
     size_t getBytesPerPixel() const;
     unsigned char *getData() const;
     size_t getDataSize() const;
-    bool drawSkeleton(const nite::UserTracker &tUserTracker, const nite::Skeleton &Skeleton);
+    void drawSkeleton(const nite::UserTracker &tUserTracker, const Body &tBody);
 private:
     cv::Mat *mFrame;
     size_t mBytesPerPixel;

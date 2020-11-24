@@ -7,9 +7,7 @@
 
 int main(int argc, char *argv[])
 {
-    Viewer viewer;
-    DeviceManager dm(viewer);
-
+    DeviceManager dm;
     dm.initialize();
     while (true) {
         if (dm.update()){

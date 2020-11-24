@@ -1,4 +1,4 @@
-#include "depthlistener.h"
+#include "bodylistener.h"
 #include <chrono>
 
 inline uint64_t getTimeNow()
@@ -8,16 +8,16 @@ inline uint64_t getTimeNow()
     return ms.count();
 }
 
-DepthListener::DepthListener(std::queue<openni::VideoFrameRef> *frames, std::queue<uint64_t> *times)
+BodyListener::BodyListener(std::queue<nite::UserTrackerFrameRef> *frames, std::queue<uint64_t> *times)
 {
     this->frames = frames;
     this->times = times;
 }
 
-void DepthListener::onNewFrame(openni::VideoStream& vs)
+void BodyListener::onNewFrame(nite::UserTracker& ut)
 {
-    openni::VideoFrameRef frame;
-    vs.readFrame(&frame);
+    nite::UserTrackerFrameRef frame;
+    ut.readFrame(&frame);
     frames->push(frame);
     uint64_t time = getTimeNow();
     times->push(time);
