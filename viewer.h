@@ -274,7 +274,7 @@ private:
     ShaderProgram renderShader;
     ShaderProgram renderGrayShader;
 	std::string shader_folder;
-    std::map<std::string, Frame *> frames;
+    std::map<std::string, std::unique_ptr<Frame>> frames;
     Texture<F6C3> rgb;
     Texture<F32C1> ir;
     int win_width;
@@ -284,13 +284,11 @@ public:
     void initialize();
     virtual void onOpenGLBindingsChanged(OpenGLBindings *b);
     bool render();
-    void addFrame(std::string id, Frame *frame);
+    void addFrame(std::string id, std::unique_ptr<Frame> frame);
     void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
     void winsize_callback(GLFWwindow* window, int w, int h);
     static void key_callbackstatic(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void winsize_callbackstatic(GLFWwindow* window, int w, int h);
-
-    void convert_frame(std::shared_ptr<openni::VideoFrameRef> in_frame, libfreenect2::Frame** out_frame);
 };
 
 #endif

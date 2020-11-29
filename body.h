@@ -9,6 +9,9 @@
 #include <vector>
 
 
+const int TRAJECTORY_SIZE = 12;
+
+
 struct Plane
 {
     glm::vec3 point;
@@ -20,8 +23,8 @@ class Body
 {
 public:
     Body();
+    Body(const nite::Skeleton &tSkeleton, uint64_t tTime);
     ~Body();
-    bool initialize(const nite::Skeleton &tSkeleton, uint64_t time);
     void convertCoordinates(const glm::mat4x4 &H);
 
     glm::vec3 getRootPosition() const;

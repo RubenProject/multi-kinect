@@ -34,26 +34,11 @@ inline nite::Quaternion toNiteQuat(const glm::vec4 &in)
     return nite::Quaternion(in.w, in.x, in.y, in.z);
 }
 
-
-
 Body::Body()
-{
-    mTrajectory.resize(12);
-    for (auto p : mTrajectory){
-        p = NULL;
-    }
-}
-
-
-Body::~Body()
 {}
 
-
-bool Body::initialize(const nite::Skeleton &tSkeleton, uint64_t time)
+Body::Body(const nite::Skeleton &tSkeleton, uint64_t time)
 {
-    if (tSkeleton.getState() != nite::SKELETON_TRACKED)
-        return false;
-
     setJointPositions(tSkeleton);
     setJointOrientations(tSkeleton);
 
@@ -70,9 +55,12 @@ bool Body::initialize(const nite::Skeleton &tSkeleton, uint64_t time)
     mForward = glm::cross(mRight, mUp);
 
     mTimeStamp = time;
-
-    return true;
+    mTrajectory = std::vector<Body*>(TRAJECTORY_SIZE, NULL);
 }
+
+
+Body::~Body()
+{}
 
 
 void Body::convertCoordinates(const glm::mat4x4 &H)

@@ -8,17 +8,23 @@ inline uint64_t getTimeNow()
     return ms.count();
 }
 
-DepthListener::DepthListener(std::queue<openni::VideoFrameRef> *frames, std::queue<uint64_t> *times)
+DepthListener::DepthListener(std::queue<openni::VideoFrameRef> *frames, std::queue<uint64_t> *times, int fps)
 {
     this->frames = frames;
     this->times = times;
+    this->mFPS = fps;
+    this->mLastTime = 0.0;
 }
 
 void DepthListener::onNewFrame(openni::VideoStream& vs)
 {
     openni::VideoFrameRef frame;
-    vs.readFrame(&frame);
-    frames->push(frame);
     uint64_t time = getTimeNow();
-    times->push(time);
+
+    if (mFPS == -1 || time - mLastTime > 1000.0 / mFPS){
+        vs.readFrame(&frame);
+        frames->push(frame);
+        times->push(time);
+        mLastTime = time;
+    }
 }

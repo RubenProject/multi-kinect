@@ -3,22 +3,21 @@
 #include <iostream>
 
 
-// frameType == 0 is depthframe, frameType == 1 is colorframe, frameType == 2 is bodyframe
-Frame::Frame(const openni::VideoFrameRef &frame, unsigned char frameType)
+Frame::Frame(const openni::VideoFrameRef &frame, const std::string &mode)
 {
-    if (frameType == 0) {
+    if (mode == "IR0" || mode == "IR1") {
         void *data = malloc(frame.getDataSize());
         memcpy(data, frame.getData(), frame.getDataSize());
         cv::Mat tFrame(frame.getHeight(), frame.getWidth(), CV_16U, data);
         mFrame = new cv::Mat;
         tFrame.convertTo(*mFrame, CV_32F);
         mBytesPerPixel = 4;
-    } else if (frameType == 1) {
+    } else if (mode == "RGB0" || mode == "RGB1") {
         void *data = malloc(frame.getDataSize());
         memcpy(data, frame.getData(), frame.getDataSize());
         mFrame = new cv::Mat(frame.getHeight(), frame.getWidth(), CV_8UC3, data);
         mBytesPerPixel = 3;
-    } else if (frameType == 2) {
+    } else if (mode == "BODY0" || mode == "BODY1") {
         void *data = malloc(frame.getWidth() * frame.getHeight() * 3);
         uint16_t *tFrameData = (uint16_t*)frame.getData();
         int width = frame.getWidth();

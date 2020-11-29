@@ -140,18 +140,6 @@ void Viewer::onOpenGLBindingsChanged(OpenGLBindings *b)
     ir.gl(b);
 }
 
-void Viewer::convert_frame(std::shared_ptr<openni::VideoFrameRef> in_frame, libfreenect2::Frame** out_frame)
-{
-    const int width = in_frame->getWidth();
-    const int height = in_frame->getHeight();
-    float* data = new float[width * height];
-    uint16_t* grey_value = (uint16_t*)in_frame->getData();
-    for (int i = 0; i < width * height; i++){
-        data[i] = (float)grey_value[i];
-    }
-    *out_frame = new libfreenect2::Frame(width, height, 4, (unsigned char*)data);
-}
-
 bool Viewer::render()
 {
     // wipe the drawing surface clear
@@ -162,7 +150,7 @@ bool Viewer::render()
 
     for (auto iter = frames.begin(); iter != frames.end(); ++iter)
     {
-        Frame *frame = iter->second;
+        const auto &frame = iter->second;
 
         // Using the frame buffer size to account for screens where window.size != framebuffer.size, e.g. retina displays
         glfwGetFramebufferSize(window, &fb_width, &fb_height);
@@ -250,8 +238,7 @@ bool Viewer::render()
     return shouldStop || glfwWindowShouldClose(window);
 }
 
-void Viewer::addFrame(std::string id, Frame *frame)
+void Viewer::addFrame(std::string id, std::unique_ptr<Frame> frame)
 {
-    delete frames[id];
-    frames[id] = frame;
+    frames[id] = std::move(frame);
 }

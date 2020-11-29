@@ -11,7 +11,7 @@
 class Frame
 {
 public:
-    Frame(const openni::VideoFrameRef &frame, unsigned char frameType);
+    Frame(const openni::VideoFrameRef &frame, const std::string &mode);
     ~Frame();
     int getWidth() const;
     int getHeight() const;
