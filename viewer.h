@@ -1,5 +1,4 @@
-#ifndef VIEWER_H
-#define VIEWER_H
+#pragma once
 
 #include <libfreenect2/config.h>
 #include <libfreenect2/frame_listener.hpp>
@@ -12,6 +11,7 @@
 #include "flextGL.h"
 #include <GLFW/glfw3.h>
 #include "frame.h"
+#include "context.h"
 
 struct Vertex
 {
@@ -130,7 +130,6 @@ public:
     {
         typedef unsigned char type;
 
-        //std::cout << bytes_per_pixel << std::endl;
         size_t linestep = width * bytes_per_pixel / sizeof(type);
 
         type *first_line = reinterpret_cast<type *>(data), *last_line = reinterpret_cast<type *>(data) + (height - 1) * linestep;
@@ -267,21 +266,12 @@ struct ShaderProgram : public WithOpenGLBindings
 };
 
 class Viewer : WithOpenGLBindings {
-private:
-    bool shouldStop;
-    GLFWwindow* window;
-    GLuint triangle_vbo, triangle_vao;
-    ShaderProgram renderShader;
-    ShaderProgram renderGrayShader;
-	std::string shader_folder;
-    std::map<std::string, std::unique_ptr<Frame>> frames;
-    Texture<F6C3> rgb;
-    Texture<F32C1> ir;
-    int win_width;
-    int win_height;
 public:
-    Viewer();
+    Viewer(std::shared_ptr<Context> context);
     void initialize();
+    bool getShouldRecord() const;
+    bool getShouldStop() const;
+
     virtual void onOpenGLBindingsChanged(OpenGLBindings *b);
     bool render();
     void addFrame(std::string id, std::unique_ptr<Frame> frame);
@@ -289,6 +279,16 @@ public:
     void winsize_callback(GLFWwindow* window, int w, int h);
     static void key_callbackstatic(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void winsize_callbackstatic(GLFWwindow* window, int w, int h);
+private:
+    GLFWwindow* window;
+    GLuint triangle_vbo, triangle_vao;
+    ShaderProgram renderShader;
+    ShaderProgram renderGrayShader;
+    std::map<std::string, std::unique_ptr<Frame>> frames;
+    Texture<F6C3> rgb;
+    Texture<F32C1> ir;
+    int win_width;
+    int win_height;
+    std::shared_ptr<Context> mContext;
 };
 
-#endif

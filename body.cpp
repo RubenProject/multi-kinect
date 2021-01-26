@@ -1,5 +1,8 @@
 #include "body.h"
 
+#include "context.h"
+
+#include <sstream>
 #include <iostream>
 
 
@@ -34,13 +37,33 @@ inline nite::Quaternion toNiteQuat(const glm::vec4 &in)
     return nite::Quaternion(in.w, in.x, in.y, in.z);
 }
 
+
+inline std::string glmToString(const glm::vec3 &in)
+{
+    return std::to_string(in.x) + " "
+        + std::to_string(in.y) + " " 
+        + std::to_string(in.z);
+}
+
+
+inline std::string glmToString(const glm::vec4 &in)
+{
+    return std::to_string(in.w) + " "
+        + std::to_string(in.x) + " "
+        + std::to_string(in.y) + " " 
+        + std::to_string(in.z);
+}
+
+
 Body::Body()
 {}
 
-Body::Body(const nite::Skeleton &tSkeleton, uint64_t time)
+
+Body::Body(const nite::Skeleton &tSkeleton, const nite::Plane &plane, uint64_t time)
 {
     setJointPositions(tSkeleton);
     setJointOrientations(tSkeleton);
+    calcConfidence(tSkeleton);
 
     glm::vec3 tShoulder, tHip;
     tShoulder = toGlmVec3(tSkeleton.getJoint(nite::JOINT_LEFT_SHOULDER).getPosition());
@@ -51,8 +74,12 @@ Body::Body(const nite::Skeleton &tSkeleton, uint64_t time)
 
     mRight = tHip + tShoulder;
     mRight = glm::normalize(mRight);
-    mUp = glm::vec3(0, 1, 0);
+    //up direction is relative to the ground plane
+    mUp = mFloorPlane.normal;
     mForward = glm::cross(mRight, mUp);
+
+    mFloorPlane.point = glm::vec3(plane.point.x, plane.point.y, plane.point.z);
+    mFloorPlane.normal = glm::vec3(plane.normal.x, plane.normal.y, plane.normal.z);
 
     mTimeStamp = time;
     mTrajectory = std::vector<Body*>(TRAJECTORY_SIZE, NULL);
@@ -61,6 +88,77 @@ Body::Body(const nite::Skeleton &tSkeleton, uint64_t time)
 
 Body::~Body()
 {}
+
+
+Body Body::fromString(const std::string &s) 
+{
+    std::istringstream iss(s);
+    float x, y, z, w;
+    for (int i = 0; i < NITE_JOINT_COUNT; ++i) {
+        iss >> x >> y >> z;
+        setJointPosition(glm::vec3(x, y, z), i);
+    }
+    for (int i = 0; i < NITE_JOINT_COUNT; ++i) {
+        iss >> w >> x >> y >> z;
+        setJointOrientation(glm::vec4(w, x, y, z), i);
+    }
+
+    iss >> x >> y >> z;
+    mFloorPlane.point = glm::vec3(x, y, z);
+    iss >> x >> y >> z;
+    mFloorPlane.normal = glm::vec3(x, y, z);
+
+    iss >> mTimeStamp;
+    //ss >> mPosConf;
+    //ss >> mOrientConf;
+    
+    return *this;
+}
+
+
+std::string Body::toString() {
+    std::stringstream ss;
+    ss << glmToString(getJointAbsPosition(nite::JOINT_HEAD)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_NECK)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_LEFT_SHOULDER)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_RIGHT_SHOULDER)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_LEFT_ELBOW)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_RIGHT_ELBOW)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_LEFT_HAND)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_RIGHT_HAND)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_TORSO)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_LEFT_HIP)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_RIGHT_HIP)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_LEFT_KNEE)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_RIGHT_KNEE)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_LEFT_FOOT)) << " ";
+    ss << glmToString(getJointAbsPosition(nite::JOINT_RIGHT_FOOT)) << " ";
+
+    ss << glmToString(getJointOrientation(nite::JOINT_HEAD)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_NECK)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_LEFT_SHOULDER)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_RIGHT_SHOULDER)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_LEFT_ELBOW)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_RIGHT_ELBOW)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_LEFT_HAND)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_RIGHT_HAND)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_TORSO)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_LEFT_HIP)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_RIGHT_HIP)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_LEFT_KNEE)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_RIGHT_KNEE)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_LEFT_FOOT)) << " ";
+    ss << glmToString(getJointOrientation(nite::JOINT_RIGHT_FOOT)) << " ";
+
+    ss << glmToString(mFloorPlane.point) << " ";
+    ss << glmToString(mFloorPlane.normal) << " ";
+
+    ss << mTimeStamp << " ";
+    ss << mPosConf << " ";
+    ss << mOrientConf << " ";
+
+    return ss.str();
+}
 
 
 void Body::convertCoordinates(const glm::mat4x4 &H)
@@ -218,6 +316,30 @@ void Body::setJointPositions(const nite::Skeleton &tSkeleton)
 }
 
 
+void Body::setJointPosition(const glm::vec3 &pos, const int i)
+{
+    switch (i)
+    {
+        case 0: mPosHEAD = pos; break;
+        case 1: mPosNECK = pos; break;
+        case 2: mPosL_SHOULDER = pos; break;
+        case 3: mPosR_SHOULDER = pos; break;
+        case 4: mPosL_ELBOW = pos; break;
+        case 5: mPosR_ELBOW = pos; break;
+        case 6: mPosL_HAND = pos; break;
+        case 7: mPosR_HAND = pos; break;
+        case 8: mPosTORSO = pos; break;
+        case 9: mPosL_HIP = pos; break;
+        case 10: mPosR_HIP = pos; break;
+        case 11: mPosL_KNEE = pos; break;
+        case 12: mPosR_KNEE = pos; break;
+        case 13: mPosL_FOOT = pos; break;
+        case 14: mPosR_FOOT = pos; break;
+        default: break;
+    }
+}
+
+
 void Body::setJointOrientations(const nite::Skeleton &tSkeleton)
 {
     mQuatHEAD = toGlmVec4(tSkeleton.getJoint(nite::JOINT_HEAD).getOrientation());
@@ -235,6 +357,78 @@ void Body::setJointOrientations(const nite::Skeleton &tSkeleton)
     mQuatR_KNEE = toGlmVec4(tSkeleton.getJoint(nite::JOINT_RIGHT_KNEE).getOrientation());
     mQuatL_FOOT = toGlmVec4(tSkeleton.getJoint(nite::JOINT_LEFT_FOOT).getOrientation());
     mQuatR_FOOT = toGlmVec4(tSkeleton.getJoint(nite::JOINT_RIGHT_FOOT).getOrientation());
+}
+
+
+void Body::setJointOrientation(const glm::vec4 &quat, const int i)
+{
+    switch (i)
+    {
+        case 0: mQuatHEAD = quat; break;
+        case 1: mQuatNECK = quat; break;
+        case 2: mQuatL_SHOULDER = quat; break;
+        case 3: mQuatR_SHOULDER = quat; break;
+        case 4: mQuatL_ELBOW = quat; break;
+        case 5: mQuatR_ELBOW = quat; break;
+        case 6: mQuatL_HAND = quat; break;
+        case 7: mQuatR_HAND = quat; break;
+        case 8: mQuatTORSO = quat; break;
+        case 9: mQuatL_HIP = quat; break;
+        case 10: mQuatR_HIP = quat; break;
+        case 11: mQuatL_KNEE = quat; break;
+        case 12: mQuatR_KNEE = quat; break;
+        case 13: mQuatL_FOOT = quat; break;
+        case 14: mQuatR_FOOT = quat; break;
+        default: break;
+    }
+}
+
+
+void Body::calcConfidence(const nite::Skeleton &tSkeleton)
+{
+    float avgPos = 0.f;
+    avgPos += tSkeleton.getJoint(nite::JOINT_HEAD).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_NECK).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_LEFT_SHOULDER).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_RIGHT_SHOULDER).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_LEFT_ELBOW).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_RIGHT_ELBOW).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_LEFT_HAND).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_RIGHT_HAND).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_TORSO).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_LEFT_HIP).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_RIGHT_HIP).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_LEFT_KNEE).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_RIGHT_KNEE).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_LEFT_FOOT).getPositionConfidence();
+    avgPos += tSkeleton.getJoint(nite::JOINT_RIGHT_FOOT).getPositionConfidence();
+
+    float avgOrient = 0.f;
+    avgOrient += tSkeleton.getJoint(nite::JOINT_HEAD).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_NECK).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_LEFT_SHOULDER).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_RIGHT_SHOULDER).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_LEFT_ELBOW).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_RIGHT_ELBOW).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_LEFT_HAND).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_RIGHT_HAND).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_TORSO).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_LEFT_HIP).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_RIGHT_HIP).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_LEFT_KNEE).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_RIGHT_KNEE).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_LEFT_FOOT).getOrientationConfidence();
+    avgOrient += tSkeleton.getJoint(nite::JOINT_RIGHT_FOOT).getOrientationConfidence();
+
+    mPosConf = avgPos / 15;
+    mOrientConf = avgOrient / 15;
+}
+
+
+float Body::getConfidence() const
+{
+    //TODO update to also use orientation confidence
+    return mPosConf;
 }
 
 

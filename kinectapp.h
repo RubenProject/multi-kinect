@@ -7,63 +7,53 @@
 #include "frame.h"
 #include "body.h"
 #include "bodymanager.h"
+#include "recordmanager.h"
+#include "context.h"
 
 #include "OpenNI.h"
 #include "NiTE.h"
 
+#include <array>
 #include <queue>
 #include <map>
 #include <memory>
-
-
-enum KINECT_STREAM : int
-{
-    KINECT_COLOR_0 = 0,
-    KINECT_COLOR_1 = 1,
-    KINECT_DEPTH_0 = 2,
-    KINECT_DEPTH_1 = 3,
-    KINECT_STREAM_COUNT = 4
-};
-
-
-enum NITE_STREAM : int
-{
-    BODY_STREAM_0 = 0,
-    BODY_STREAM_1 = 1,
-    BODY_STREAM_COUNT = 2
-};
-
 
 
 class KinectApplication
 {
 public:
     KinectApplication();
-    KinectApplication(bool depth, bool color, bool body, int fps);
+    KinectApplication(std::shared_ptr<Context> context);
     ~KinectApplication();
     void initialize();
     bool update();
 private:
-    openni::Device mDev_0, mDev_1;
-    std::unique_ptr<BodyManager> mBodyManager;
-    std::unique_ptr<Viewer> mViewer;
+    void handlePlay();
+    void handleReplay();
+    void handleBodies();
+
+    void startListeners();
+    void stopListeners();
+
+    std::array<openni::Device, KINECT_COUNT> mDev;
+    std::shared_ptr<BodyManager> mBodyManager;
+    std::shared_ptr<Viewer> mViewer;
+    std::shared_ptr<RecordManager> mRecordManager;
+    std::shared_ptr<Context> mContext;
     std::map<int, std::string> mKinectViewerMap;
-    
-    //config
-    bool mDrawDepth, mDrawColor, mDrawBody;
-    bool mRecording;
-    int mFPS;
 
-    openni::VideoStream mStreams[KINECT_STREAM_COUNT];
-    std::queue<openni::VideoFrameRef> mFrames[KINECT_STREAM_COUNT];
-    std::queue<uint64_t> mTimestamps[KINECT_STREAM_COUNT];
-    std::vector<ColorListener*> mColorListeners;
-    std::vector<DepthListener*> mDepthListeners;
+    std::array<openni::VideoStream, KINECT_STREAM_COUNT> mStreams;
+    std::array<std::queue<openni::VideoFrameRef>, KINECT_STREAM_COUNT> mFrames;
+    std::array<ColorListener*, KINECT_COUNT> mColorListeners;
+    std::array<DepthListener*, KINECT_COUNT> mDepthListeners;
 
-    std::vector<nite::UserTracker> mUserTrackers;
-    std::vector<std::queue<nite::UserTrackerFrameRef>> mBodyFrames;
-    std::vector<std::queue<uint64_t>> mBodyTimes;
-    std::vector<BodyListener*> mBodyListeners;
+    std::array<nite::UserTracker, KINECT_COUNT> mUserTrackers;
+    std::array<std::queue<nite::UserTrackerFrameRef>, KINECT_COUNT> mBodyFrames;
+    std::array<std::queue<uint64_t>, KINECT_COUNT> mBodyTimes;
+    std::array<BodyListener*, KINECT_COUNT> mBodyListeners;
+
+    uint64_t mReplayStartTime;
+    bool mImmediatePlay;
 };
 
 

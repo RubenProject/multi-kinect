@@ -3,25 +3,36 @@
 #include <iostream>
 
 
+Frame::Frame(const int width, const int height, const cv::Scalar color)
+{
+    mFrame = std::make_unique<cv::Mat>(height, width, CV_8UC3, color);
+    mBytesPerPixel = 3;
+}
+
+
 Frame::Frame(const openni::VideoFrameRef &frame, const std::string &mode)
 {
+    const int width = frame.getWidth();
+    const int height = frame.getHeight();
     if (mode == "IR0" || mode == "IR1") {
-        void *data = malloc(frame.getDataSize());
-        memcpy(data, frame.getData(), frame.getDataSize());
-        cv::Mat tFrame(frame.getHeight(), frame.getWidth(), CV_16U, data);
-        mFrame = new cv::Mat;
-        tFrame.convertTo(*mFrame, CV_32F);
+        uint16_t *tFrameData = (uint16_t*)frame.getData();
+        mFrame = std::make_unique<cv::Mat>(height, width, CV_32F);
+        mFrame->forEach<float>([&](float &pixel, const int *position) -> void {
+                int idx = position[0] * width + position[1];
+                pixel = (float)tFrameData[idx];
+        });
         mBytesPerPixel = 4;
     } else if (mode == "RGB0" || mode == "RGB1") {
-        void *data = malloc(frame.getDataSize());
-        memcpy(data, frame.getData(), frame.getDataSize());
-        mFrame = new cv::Mat(frame.getHeight(), frame.getWidth(), CV_8UC3, data);
+        cv::Point3_<uint8_t> *tFrameData = (cv::Point3_<uint8_t>*)frame.getData();
+        mFrame = std::make_unique<cv::Mat>(frame.getHeight(), frame.getWidth(), CV_8UC3);
+        mFrame->forEach<cv::Point3_<uint8_t>>([&](cv::Point3_<uint8_t> &pixel, const int *position) -> void {
+                int idx = position[0] * width + position[1];
+                pixel = tFrameData[idx];
+        });
         mBytesPerPixel = 3;
     } else if (mode == "BODY0" || mode == "BODY1") {
-        void *data = malloc(frame.getWidth() * frame.getHeight() * 3);
         uint16_t *tFrameData = (uint16_t*)frame.getData();
-        int width = frame.getWidth();
-        mFrame = new cv::Mat(frame.getHeight(), frame.getWidth(), CV_8UC3, data);
+        mFrame = std::make_unique<cv::Mat>(frame.getHeight(), frame.getWidth(), CV_8UC3);
         mFrame->forEach<cv::Point3_<uint8_t>>([&](cv::Point3_<uint8_t> &pixel, const int *position) -> void {
                 int tIdx = position[0] * width + position[1];
                 uint8_t value = tFrameData[tIdx] >> 4;
@@ -36,9 +47,9 @@ Frame::Frame(const openni::VideoFrameRef &frame, const std::string &mode)
     }
 }
 
+
 Frame::~Frame()
 {
-    delete mFrame;
 }
 
 

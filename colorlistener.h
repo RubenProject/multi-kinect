@@ -6,12 +6,14 @@
 class ColorListener : public openni::VideoStream::NewFrameListener
 {
 public:
-    ColorListener(std::queue<openni::VideoFrameRef> *frames, std::queue<uint64_t> *times, int fps);
+    ColorListener(std::queue<openni::VideoFrameRef> *frames, int fps);
     void onNewFrame(openni::VideoStream& vs);
+    void startListening();
+    void stopListening();
 private:
     std::queue<openni::VideoFrameRef> *frames;
-    std::queue<uint64_t> *times;
 
     int mFPS;
     uint64_t mLastTime;
+    bool listening;
 };

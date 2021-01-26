@@ -7,6 +7,7 @@
 #include "NiTE.h"
 
 #include <vector>
+#include <string>
 
 
 const int TRAJECTORY_SIZE = 12;
@@ -23,8 +24,12 @@ class Body
 {
 public:
     Body();
-    Body(const nite::Skeleton &tSkeleton, uint64_t tTime);
+    Body(const nite::Skeleton &tSkeleton, const nite::Plane &plane, uint64_t tTime);
     ~Body();
+
+    Body fromString(const std::string &s);
+    std::string toString();
+
     void convertCoordinates(const glm::mat4x4 &H);
 
     glm::vec3 getRootPosition() const;
@@ -39,14 +44,15 @@ public:
 
     glm::vec3 getJointAbsPosition(const nite::JointType tJointID) const;
     glm::vec3 getJointRelPosition(const nite::JointType tJointID) const;
-    void setJointPosition(const nite::JointType tJointID, nite::Point3f value);
-    void setJointPosition(const nite::JointType tJointID, glm::vec3 value);
+    void setJointPosition(const glm::vec3 &pos, const int i);
     void setJointPositions(const nite::Skeleton &tSkeleton);
 
     glm::vec4 getJointOrientation(const nite::JointType tJointID) const;
-    void setJointOrientations(const nite::JointType tJointID, nite::Quaternion value);
-    void setJointOrientations(const nite::JointType tJointID, glm::vec4 value);
+    void setJointOrientation(const glm::vec4 &quat, const int i);
     void setJointOrientations(const nite::Skeleton &tSkeleton);
+
+    float getConfidence() const;
+    void calcConfidence(const nite::Skeleton &tSkeleton);
 
     Body *getTrajectory(int i) const;
     void setTrajectory(Body *body, int i);
@@ -54,8 +60,6 @@ public:
 private:
     glm::vec3 mPosROOT;
     glm::vec3 mUp, mForward, mRight;
-    Plane mFloorPlane;
-    uint64_t mTimeStamp;
 
     glm::vec3 mPosHEAD;
     glm::vec3 mPosNECK;
@@ -88,6 +92,11 @@ private:
     glm::vec4 mQuatR_KNEE;
     glm::vec4 mQuatL_FOOT;
     glm::vec4 mQuatR_FOOT;
+
+    Plane mFloorPlane;
+    uint64_t mTimeStamp;
+    float mPosConf;
+    float mOrientConf;
 
     // surrounding trajectory
     std::vector<Body*> mTrajectory;

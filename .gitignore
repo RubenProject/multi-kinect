@@ -6,7 +6,9 @@ OpenNI2_Include/
 OpenNI2_Documentation/
 glm/
 Qt/
+Rec/
+
 
 *.ini
 *.o
-Protonect
+KinectApp

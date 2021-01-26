@@ -1,7 +1,7 @@
 #include "kinectapp.h"
 
 
-int main(int argc, char *argv[])
+int main()
 {
     KinectApplication kApp;
     kApp.initialize();

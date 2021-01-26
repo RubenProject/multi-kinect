@@ -1,17 +1,38 @@
 #include "viewer.h"
 #include <cstdlib>
 #include <cmath>
+#include <fstream>
 
 
-Viewer::Viewer() : shader_folder("src/shader/"), 
-                   win_width(600),
-                   win_height(400)
+Viewer::Viewer(std::shared_ptr<Context> context) 
+    : mContext(context), win_width(600), win_height(400)
 {
 }
 
 static void glfwErrorCallback(int error, const char* description)
 {
   std::cerr << "GLFW error " << error << " " << description << std::endl;
+}
+
+static std::string readShader(const std::string &filename) {
+    std::ifstream is(filename.c_str());
+    if (is) {
+        is.seekg(0, is.end);
+        int length = is.tellg();
+        is.seekg(0, is.beg);
+
+        char *buffer = new char[length];
+        is.read(buffer, length);
+        if (!is){
+            std::cout << "failed to read shader!" << std::endl;
+        }
+        std::string s(buffer);
+        delete[] buffer;
+        return s;
+    } else {
+        std::cout << "failed to read shader!" << std::endl;
+        return std::string();
+    }
 }
 
 void Viewer::initialize()
@@ -41,56 +62,9 @@ void Viewer::initialize()
     flextInit(b);
     gl(b);
 
-    std::string vertexshadersrc = ""
-        "#version 330\n"
-                                                
-        "in vec2 Position;"
-        "in vec2 TexCoord;"
-                    
-        "out VertexData{"
-        "vec2 TexCoord;" 
-        "} VertexOut;"  
-                    
-        "void main(void)"
-        "{"
-        "    gl_Position = vec4(Position, 0.0, 1.0);"
-        "    VertexOut.TexCoord = TexCoord;"
-        "}";
-    std::string grayfragmentshader = ""
-        "#version 330\n"
-        
-        "uniform sampler2DRect Data;"
-        
-        "vec4 tempColor;"
-        "in VertexData{"
-        "    vec2 TexCoord;"
-        "} FragmentIn;"
-        
-        "layout(location = 0) out vec4 Color;"
-        
-        "void main(void)"
-        "{"
-            "ivec2 uv = ivec2(FragmentIn.TexCoord.x, FragmentIn.TexCoord.y);"
-            "tempColor = texelFetch(Data, uv);"
-            "Color = vec4(tempColor.x/4500, tempColor.x/4500, tempColor.x/4500, 1);"
-        "}";
-    std::string fragmentshader = ""
-        "#version 330\n"
-        
-        "uniform sampler2DRect Data;"
-        
-        "in VertexData{"
-        "    vec2 TexCoord;"
-        "} FragmentIn;"
-       
-        "layout(location = 0) out vec4 Color;"
-        
-        "void main(void)"
-        "{"
-        "    ivec2 uv = ivec2(FragmentIn.TexCoord.x, FragmentIn.TexCoord.y);"
-
-        "    Color = texelFetch(Data, uv);"
-        "}";
+    std::string vertexshadersrc = readShader(mContext->mShaderFolder + "common.vs");
+    std::string grayfragmentshader = readShader(mContext->mShaderFolder + "gray.fs");
+    std::string fragmentshader = readShader(mContext->mShaderFolder + "color.fs");
 
     renderShader.setVertexShader(vertexshadersrc);
     renderShader.setFragmentShader(fragmentshader);
@@ -100,12 +74,9 @@ void Viewer::initialize()
     renderGrayShader.setFragmentShader(grayfragmentshader);
     renderGrayShader.build();
 
-
     glfwSetWindowUserPointer(window, this);
     glfwSetKeyCallback(window, Viewer::key_callbackstatic);
     glfwSetWindowSizeCallback(window, Viewer::winsize_callbackstatic);
-
-    shouldStop = false;
 }
 
 void Viewer::winsize_callbackstatic(GLFWwindow* window, int w, int h)
@@ -129,7 +100,29 @@ void Viewer::key_callbackstatic(GLFWwindow* window, int key, int scancode, int a
 void Viewer::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        shouldStop = true;
+        mContext->mExit = true;
+    if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
+        mContext->mStartRecord = true;
+    if (key == GLFW_KEY_F2 && action == GLFW_PRESS)
+        mContext->mStopRecord = true;
+    if (key == GLFW_KEY_F3 && action == GLFW_PRESS) {
+        if (mContext->mReplay){
+            mContext->mStopReplay = true;
+        } else {
+            mContext->mStartReplay = true;
+        }
+    }
+    if (key == GLFW_KEY_F4 && action == GLFW_PRESS) {
+        if (!mContext->mReplay){
+            mContext->mLoad = true;
+        }
+    }
+    if (key == GLFW_KEY_PAGE_UP && action == GLFW_PRESS){
+        mContext->mStartRecord = true;
+    }
+    if (key == GLFW_KEY_PAGE_DOWN && action == GLFW_PRESS){
+        mContext->mStopRecord = true;
+    }
 }
 
 void Viewer::onOpenGLBindingsChanged(OpenGLBindings *b)
@@ -218,6 +211,7 @@ bool Viewer::render()
         if (iter->first == "BODY0" || iter->first == "BODY1")
         {
             renderShader.use();
+
             rgb.allocate(frame->getWidth(), frame->getHeight());
             memcpy(rgb.data, frame->getData(), frame->getDataSize());
             rgb.flipY();
@@ -235,10 +229,11 @@ bool Viewer::render()
     // update other events like input handling 
     glfwPollEvents();
 
-    return shouldStop || glfwWindowShouldClose(window);
+    return glfwWindowShouldClose(window);
 }
 
 void Viewer::addFrame(std::string id, std::unique_ptr<Frame> frame)
 {
     frames[id] = std::move(frame);
 }
+
