@@ -4,9 +4,11 @@ NiTE2_Include/
 OpenNI2/
 OpenNI2_Include/
 OpenNI2_Documentation/
+yaml-cpp/
 glm/
 Qt/
 Rec/
+Samples/
 
 
 *.ini

@@ -1,9 +1,5 @@
 #include "bodymanager.h"
 
-#include <opencv2/opencv.hpp>
-#include <opencv2/core.hpp>
-#include <opencv2/calib3d.hpp>
-
 
 //TODO add a calibration phase where body streams are send to a calibration function
 //TODO add a quality meassure to the recordings 
@@ -11,7 +7,7 @@
 //- how good is the skeleton confidence
 
 BodyManager::BodyManager(std::shared_ptr<Context> context) 
-    : mCalibrated(false), mRecording(false), mRecStartTime(0), mContext(context)
+    : mCalibrated(true), mRecording(false), mContext(context)
 {
     for (auto &state : mReadyStates){
         state = false;
@@ -23,19 +19,7 @@ BodyManager::~BodyManager()
 {}
 
 
-void BodyManager::setUserTrackers(const std::array<nite::UserTracker, KINECT_COUNT> &tTrackers)
-{
-    mUserTrackers = tTrackers;
-}
-
-
-void BodyManager::setRecordManager(std::shared_ptr<RecordManager> rm)
-{
-    this->mRecordManager = rm;
-}
-
-
-void BodyManager::addBody(const nite::UserTrackerFrameRef &frame, const int tStreamIdx, uint64_t time)
+void BodyManager::update(const nite::UserTrackerFrameRef &frame, const int tStreamIdx, uint64_t time)
 {
     mReadyStates[tStreamIdx] = false;
     const nite::Array<nite::UserData> &tUsers = frame.getUsers();
@@ -56,35 +40,46 @@ void BodyManager::addBody(const nite::UserTrackerFrameRef &frame, const int tStr
             mLastBodies[tStreamIdx] = body;
             mReadyStates[tStreamIdx] = true;
 
-            if (!mCalibrated) {
-                mBodyVectors[tStreamIdx].push_back(body);
-                if (calibrateReady()){
-                    std::cout << "calibrating..." << std::endl;
-                    calibrate();
-                    clearBodies();
-                }
-            } else if (mRecording) {
+            if (mRecording || mContext->mCalibrate) {
                 mBodyVectors[tStreamIdx].push_back(body);
             } 
             break;;
         }
     }
+
+    if (mContext->mCalibrate && calibrateReady()){
+        mContext->log(libfreenect2::Logger::Info, "Calibrating...");
+        calibrate();
+        clearBodies();
+    }
 }
 
 
-bool BodyManager::getReadyState(const int tStreamID) const
+void BodyManager::setUserTrackers(const std::array<nite::UserTracker, KINECT_COUNT> &tTrackers)
 {
-    return mReadyStates[tStreamID];
+    mUserTrackers = tTrackers;
 }
 
 
-const Body &BodyManager::getBody(const int tStreamID)
+void BodyManager::setRecordManager(std::shared_ptr<RecordManager> rm)
 {
-    return mLastBodies[tStreamID];
+    this->mRecordManager = rm;
 }
 
 
-const Body &BodyManager::getNextBody(const int tStreamIdx, const uint64_t time)
+bool BodyManager::getReadyState(const int &tStreamIdx) const
+{
+    return mReadyStates[tStreamIdx];
+}
+
+
+const Body &BodyManager::getBody(const int &tStreamIdx)
+{
+    return mLastBodies[tStreamIdx];
+}
+
+
+const Body &BodyManager::getNextBody(const int &tStreamIdx, const uint64_t time)
 {
     if (mReplayIdx[tStreamIdx] < mBodyVectors[tStreamIdx].size()
         && time > mBodyVectors[tStreamIdx][mReplayIdx[tStreamIdx]].getTimeStamp()) {
@@ -98,13 +93,27 @@ const Body &BodyManager::getNextBody(const int tStreamIdx, const uint64_t time)
 }
 
 
+void BodyManager::getHomography(glm::dmat3x3 &R, glm::dvec3 &t) const
+{
+    R = this->R;
+    t = this->t;
+}
+
+
+void BodyManager::setHomography(const glm::dmat3x3 &R, const glm::dvec3 &t)
+{
+    this->R = R;
+    this->t = t;
+}
+
+
 bool BodyManager::calibrateReady()
 {
     // at least 10 seconds of footage on both camera's
     // 500 body frames
     // max 0.5 seconds of downtime
     // XXX debug lowered numbers
-    const uint64_t minRunTime = 1000;
+    const uint64_t minRunTime = 5000;
     const size_t minSamples = 50;
     const uint64_t maxDownTime = 500;
 
@@ -112,25 +121,14 @@ bool BodyManager::calibrateReady()
         if (mBodyVectors[i].empty()) {
             return false;
         }
-        uint64_t begin = mBodyVectors[i].begin()->getTimeStamp();
-        uint64_t end = mBodyVectors[i].end()->getTimeStamp();
+        uint64_t begin = mBodyVectors[i].front().getTimeStamp();
+        uint64_t end = mBodyVectors[i].back().getTimeStamp();
         if (end - begin < minRunTime) {
             return false;
         }
         if (mBodyVectors[i].size() <= minSamples) {
             return false;
         }
-        /*uint64_t last = 0;
-        uint64_t now = 0;
-        for (auto v : mBodyVectors[i]){
-            now = v.getTimeStamp();
-            if (last != 0 && now - last > maxDownTime) {
-                std::cout << "downtime" << std::endl;
-                return false;
-            }
-            last = now;
-        }
-        */
     }
     return true;
 }
@@ -142,10 +140,6 @@ void BodyManager::calibrate()
     const uint64_t minSampleInterval = 500;
     const float minConfidence = 0.65;
     const int minSampleCount = 10;
-    H = glm::mat4x4(1.0, 0.0, 0.0, 0.0,
-                    0.0, 1.0, 0.0, 0.0,
-                    0.0, 0.0, 1.0, 0.0,
-                    0.0, 0.0, 0.0, 1.0);
 
     //calculate a set of best pairs
     // - Could include low velocity of joints
@@ -183,7 +177,7 @@ void BodyManager::calibrate()
     }
 
     if (candidates.size() < minSampleCount){
-        std::cout << "Not enough samples for calibration..." << std::endl;
+        mContext->log(libfreenect2::Logger::Debug, "Not enough samples for calibration...");
         return;
     }
 
@@ -202,29 +196,71 @@ void BodyManager::calibrate()
         Body body0 = mBodyVectors[KINECT_ID_0][candidates[i].first];
         Body body1 = mBodyVectors[KINECT_ID_1][candidates[i].second];
         for (auto jointIdx : stableJoints){
-            glm::vec3 pos0 = body0.getJointAbsPosition(jointIdx);
-            glm::vec3 pos1 = body1.getJointAbsPosition(jointIdx);
-            worldCoords0.push_back(cv::Point3f(pos0.x, pos0.y, pos0.z));
-            worldCoords1.push_back(cv::Point3f(pos1.x, pos1.y, pos1.z));
+            glm::dvec3 pos0 = body0.getJointAbsPosition(jointIdx);
+            glm::dvec3 pos1 = body1.getJointAbsPosition(jointIdx);
+            worldCoords0.push_back(cv::Point3d(pos0.x, pos0.y, pos0.z));
+            worldCoords1.push_back(cv::Point3d(pos1.x, pos1.y, pos1.z));
         }
     }
 
     cv::Mat inliers;
     cv::Mat h;
 
-    int ret = cv::estimateAffine3D(worldCoords0, worldCoords1, h, inliers);
-    cv::Mat r = h(cv::Rect(0, 0, 3, 3)).clone();
-    cv::Mat t = h(cv::Rect(3, 0, 1, 3)).clone();
-    if (ret) {
+    int success = cv::estimateAffine3D(worldCoords0, worldCoords1, h, inliers);
+
+    if (success) {
+        std::cout << h << std::endl;
+        R = glm::dmat3x3(h.at<double>(0, 0), h.at<double>(0, 1), h.at<double>(0, 2),
+                         h.at<double>(1, 0), h.at<double>(1, 1), h.at<double>(1, 2),
+                         h.at<double>(2, 0), h.at<double>(2, 1), h.at<double>(2, 2));
+        t = glm::dvec3(h.at<double>(0, 3), h.at<double>(1, 3), h.at<double>(2, 3));
         mCalibrated = true;
     } else {
-        std::cout << "calibration failed" << std::endl;
+        mContext->log(libfreenect2::Logger::Debug, "Calibration failed");
+        mCalibrated = false;
     }
+}
+
+
+void BodyManager::stopCalibrate()
+{
 }
 
 
 void BodyManager::process()
 {
+    //for (size_t i = 0; i < mBodyVectors[KINECT_ID_1].size(); ++i){
+        //Body b = mBodyVectors[KINECT_ID_1][i];
+        //b.convertCoordinates(R, t);
+        //mCombinedBodyVector.push_back(b);
+    //}
+    //std::swap(mBodyVectors[KINECT_ID_0], mCombinedBodyVector);
+    //std::swap(mBodyVectors[KINECT_ID_1], mBodyVectors[KINECT_ID_0]);
+    //std::swap(mCombinedBodyVector, mBodyVectors[KINECT_ID_1]);
+
+    //const int testIdx = 100;
+    //uint64_t time0 = mCombinedBodyVector[testIdx].getTimeStamp();
+    //size_t pairIdx = 0;
+    //uint64_t pairDelta = 500;
+//
+    //for (size_t i = 0; i < mBodyVectors[KINECT_ID_1].size(); ++i){
+        //uint64_t time1 = mBodyVectors[KINECT_ID_1][i].getTimeStamp();
+        //if (time0 > time1 && time0 - time1 <= pairDelta){
+            //pairDelta = time0 - time1;
+            //pairIdx = i;
+        //}
+        //if (time0 <= time1 && time1 - time0 <= pairDelta){
+            //pairDelta = time1 - time0;
+            //pairIdx = i;
+        //}
+    //}
+
+
+
+    //std::cout << mCombinedBodyVector[testIdx] << std::endl;
+    //std::cout << mBodyVectors[KINECT_ID_1] << std::endl;
+    
+
     /*const uint64_t max_past = 1000, max_future = 1000;
     const int past_count = 6, future_count = 6;
 
@@ -292,7 +328,7 @@ void BodyManager::startRecording()
         clearBodies();
         mRecording = true;
     } else {
-        std::cout << "Not done calibrating!" << std::endl;
+        mContext->log(libfreenect2::Logger::Debug, "Not done calibrating!");
     }
 }
 
@@ -301,7 +337,7 @@ void BodyManager::stopRecording()
 {
     mRecording = false;
 
-    // make all times relative to the first frame
+    // make all timestamps relative to the first frame
     uint64_t startTime = std::min(mBodyVectors[KINECT_ID_0].begin()->getTimeStamp(), 
                                   mBodyVectors[KINECT_ID_1].begin()->getTimeStamp());
     for (auto &v : mBodyVectors[KINECT_ID_0]){
@@ -327,33 +363,54 @@ void BodyManager::startReplay()
 
 void BodyManager::save()
 {
-    std::vector<std::string> bodyString(KINECT_COUNT, "");
-    for (size_t i = 0; i < mBodyVectors.size(); i++){
-        for (auto body : mBodyVectors[i]){
-            bodyString[i] += body.toString() + "\n";
+    std::array<YAML::Node, KINECT_COUNT> root;
+    for (size_t i = 0; i < KINECT_COUNT; ++i){
+        for (auto &body : mBodyVectors[i]){
+            root[i].push_back(body.serialize());
         }
     }
-    mRecordManager->writeRecording(bodyString);
+    mRecordManager->writeRecording(root);
 }
 
 
 void BodyManager::load(int recordingIdx)
 {
     Body body;
-    std::string line;
     
-    this->clearBodies();
+    clearBodies();
     
-    std::vector<std::string> bodyString;
-    mRecordManager->readRecording(bodyString, recordingIdx);
-    for (int i = 0; i < KINECT_COUNT; ++i) {
-        std::stringstream ss;
-        ss.str(bodyString[i]);
-        while (std::getline(ss, line)){
-            body.fromString(line);
+    std::array<YAML::Node, KINECT_COUNT> root;
+    mRecordManager->readRecording(root, recordingIdx);
+    for (size_t i = 0; i < KINECT_COUNT; ++i) {
+        for (size_t j = 0; j < root[i].size(); ++j) {
+            body.deserialize(root[i][j]);
             mBodyVectors[i].push_back(body);
         }
     }
+}
+
+
+void BodyManager::rotateBodies(const glm::dmat3 &R, const int tStreamIdx)
+{
+    for (auto &body : mBodyVectors[tStreamIdx])
+        body.transform(R, glm::dvec3(0.0));
+}
+
+
+void BodyManager::scaleBodies(const glm::dvec3 &S, const int tStreamIdx)
+{
+    glm::dmat3 R = glm::dmat3(S.x, 0.0, 0.0,
+                              0.0, S.y, 0.0,
+                              0.0, 0.0, S.z);
+    for (auto &body : mBodyVectors[tStreamIdx])
+        body.transform(R, glm::dvec3(0.0));
+}
+
+
+void BodyManager::translateBodies(const glm::dvec3 &t, const int tStreamIdx)
+{
+    for (auto &body : mBodyVectors[tStreamIdx])
+        body.transform(glm::dmat3(1.0), t);
 }
 
 

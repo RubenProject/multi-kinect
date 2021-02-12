@@ -1,8 +1,6 @@
 #pragma once
 
-#include <queue>
-#include <OpenNI.h>
-#include <NiTE.h>
+#include "pch.h"
 
 class BodyListener : public nite::UserTracker::NewFrameListener
 {

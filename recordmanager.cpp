@@ -1,7 +1,5 @@
 #include "recordmanager.h"
 
-#include <fstream>
-#include <algorithm>
 #include "dirent.h"
 
 
@@ -55,49 +53,36 @@ int RecordManager::getNextIdx()
 }
 
 
-void RecordManager::writeRecording(const std::vector<std::string> &bodyString)
+void RecordManager::writeRecording(const std::array<YAML::Node, KINECT_COUNT> &root)
 {
     int lowest_idx = getNextIdx();
-    for (int i = 0; i < KINECT_COUNT; ++i) {
-        std::ofstream os((mContext->mRecordFolder
-                         + "I" + std::to_string(lowest_idx)
-                         + "K" + std::to_string(i) + ".txt"
-                         ).c_str(), std::ofstream::out);
-        if (os.is_open()) {
-            os << bodyString[i];
-            os.close();
-        }
+    for (size_t i = 0; i < KINECT_COUNT; ++i){
+        std::string name = mContext->mRecordFolder 
+                           + "I" + std::to_string(lowest_idx)
+                           + "K" + std::to_string(i) + ".yaml";
+        std::ofstream fout(name.c_str());
+        assert(fout.is_open());
+        fout << root[i];
+        fout.close();
+
     }
     mRecordIdx.push_back(lowest_idx);
     std::sort(mRecordIdx.begin(), mRecordIdx.end());
 }
 
 
-void RecordManager::readRecording(std::vector<std::string> &bodyString, const int idx)
+void RecordManager::readRecording(std::array<YAML::Node, KINECT_COUNT> &root, const int idx)
 {
+    auto res = std::find(mRecordIdx.begin(), mRecordIdx.end(), idx);
+    if (res == std::end(mRecordIdx)) {
+        mContext->log(libfreenect2::Logger::Error ,"Recording not in database");
+        return;
+    }
     for (int i = 0; i < KINECT_COUNT; ++i) {
-        std::string filename = mContext->mRecordFolder
-                         + "I" + std::to_string(idx)
-                         + "K" + std::to_string(i) + ".txt";
-        std::ifstream is(filename.c_str());
-        if (is) {
-            is.seekg(0, is.end);
-            int length = is.tellg();
-            std::cout << length << std::endl;
-            is.seekg(0, is.beg);
-            char *buffer = new char[length];
-            is.read(buffer, length);
-            if (!is){
-                std::cout << "failed to read shader!" << std::endl;
-            }
-            std::string s(buffer);
-            delete[] buffer;
-            bodyString.push_back(s);
-        } else {
-            std::cout << "failed to read shader!" << std::endl;
-            bodyString.push_back(std::string());
-        }
+        std::string name = mContext->mRecordFolder
+                           + "I" + std::to_string(idx)
+                           + "K" + std::to_string(i) + ".yaml";
+        root[i] = YAML::LoadFile(name.c_str());
     }
 }
-
 

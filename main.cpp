@@ -1,4 +1,5 @@
 #include "kinectapp.h"
+#include "context.h"
 
 
 int main()

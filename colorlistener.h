@@ -1,7 +1,6 @@
 #pragma once
 
-#include <queue>
-#include <OpenNI.h>
+#include "pch.h"
 
 class ColorListener : public openni::VideoStream::NewFrameListener
 {

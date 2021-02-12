@@ -5,7 +5,7 @@
 
 Frame::Frame(const int width, const int height, const cv::Scalar color)
 {
-    mFrame = std::make_unique<cv::Mat>(height, width, CV_8UC3, color);
+    mFrame = cv::Mat(height, width, CV_8UC3, color);
     mBytesPerPixel = 3;
 }
 
@@ -16,29 +16,29 @@ Frame::Frame(const openni::VideoFrameRef &frame, const std::string &mode)
     const int height = frame.getHeight();
     if (mode == "IR0" || mode == "IR1") {
         uint16_t *tFrameData = (uint16_t*)frame.getData();
-        mFrame = std::make_unique<cv::Mat>(height, width, CV_32F);
-        mFrame->forEach<float>([&](float &pixel, const int *position) -> void {
-                int idx = position[0] * width + position[1];
-                pixel = (float)tFrameData[idx];
+        mFrame = cv::Mat(height, width, CV_32F);
+        mFrame.forEach<float>([&](float &pixel, const int *position) -> void {
+               int idx = position[0] * width + position[1];
+               pixel = (float)tFrameData[idx];
         });
         mBytesPerPixel = 4;
     } else if (mode == "RGB0" || mode == "RGB1") {
         cv::Point3_<uint8_t> *tFrameData = (cv::Point3_<uint8_t>*)frame.getData();
-        mFrame = std::make_unique<cv::Mat>(frame.getHeight(), frame.getWidth(), CV_8UC3);
-        mFrame->forEach<cv::Point3_<uint8_t>>([&](cv::Point3_<uint8_t> &pixel, const int *position) -> void {
-                int idx = position[0] * width + position[1];
-                pixel = tFrameData[idx];
+        mFrame = cv::Mat(frame.getHeight(), frame.getWidth(), CV_8UC3);
+        mFrame.forEach<cv::Point3_<uint8_t>>([&](cv::Point3_<uint8_t> &pixel, const int *position) -> void {
+               int idx = position[0] * width + position[1];
+               pixel = tFrameData[idx];
         });
         mBytesPerPixel = 3;
     } else if (mode == "BODY0" || mode == "BODY1") {
         uint16_t *tFrameData = (uint16_t*)frame.getData();
-        mFrame = std::make_unique<cv::Mat>(frame.getHeight(), frame.getWidth(), CV_8UC3);
-        mFrame->forEach<cv::Point3_<uint8_t>>([&](cv::Point3_<uint8_t> &pixel, const int *position) -> void {
-                int tIdx = position[0] * width + position[1];
-                uint8_t value = tFrameData[tIdx] >> 4;
-                pixel.x = value;
-                pixel.y = value;
-                pixel.z = value;
+        mFrame = cv::Mat(frame.getHeight(), frame.getWidth(), CV_8UC3);
+        mFrame.forEach<cv::Point3_<uint8_t>>([&](cv::Point3_<uint8_t> &pixel, const int *position) -> void {
+               int tIdx = position[0] * width + position[1];
+               uint8_t value = tFrameData[tIdx] >> 4;
+               pixel.x = value;
+               pixel.y = value;
+               pixel.z = value;
         });
         mBytesPerPixel = 3;
     } else {
@@ -55,12 +55,12 @@ Frame::~Frame()
 
 int Frame::getHeight() const
 {
-    return mFrame->rows;
+    return mFrame.rows;
 }
 
 int Frame::getWidth() const
 {
-    return mFrame->cols;
+    return mFrame.cols;
 }
 
 size_t Frame::getBytesPerPixel() const
@@ -70,12 +70,17 @@ size_t Frame::getBytesPerPixel() const
 
 size_t Frame::getDataSize() const
 {
-    return mBytesPerPixel * mFrame->cols * mFrame->rows;
+    return mBytesPerPixel * mFrame.cols * mFrame.rows;
+}
+
+cv::Mat Frame::getMat()
+{
+    return mFrame;
 }
 
 unsigned char *Frame::getData() const
 {
-    return mFrame->data;
+    return mFrame.data;
 }
 
 
@@ -130,37 +135,37 @@ void Frame::drawSkeleton(const nite::UserTracker &tUserTracker, const Body &tBod
      tUserTracker.convertJointCoordinatesToDepth(pR_FOOT.x, pR_FOOT.y, pR_FOOT.z, &R_FOOT.x, &R_FOOT.y);
  
      // draw joints
-     cv::circle(*mFrame, HEAD, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, NECK, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, L_SHOULDER, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, R_SHOULDER, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, L_ELBOW, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, R_ELBOW, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, L_HAND, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, R_HAND, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, TORSO, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, L_HIP, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, R_HIP, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, L_KNEE, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, R_KNEE, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, L_FOOT, 1, cv::Scalar(0, 0, 256));
-     cv::circle(*mFrame, R_FOOT, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, HEAD, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, NECK, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, L_SHOULDER, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, R_SHOULDER, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, L_ELBOW, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, R_ELBOW, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, L_HAND, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, R_HAND, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, TORSO, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, L_HIP, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, R_HIP, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, L_KNEE, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, R_KNEE, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, L_FOOT, 1, cv::Scalar(0, 0, 256));
+     cv::circle(mFrame, R_FOOT, 1, cv::Scalar(0, 0, 256));
 
      // draw bones
      const int LINE_THICKNESS = 2;
-     cv::line(*mFrame, HEAD, NECK, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-     cv::line(*mFrame, NECK, TORSO, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-     cv::line(*mFrame, TORSO, L_HIP, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-     cv::line(*mFrame, TORSO, R_HIP, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-     cv::line(*mFrame, TORSO, L_SHOULDER, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-     cv::line(*mFrame, L_SHOULDER, L_ELBOW, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-     cv::line(*mFrame, L_ELBOW, L_HAND, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-     cv::line(*mFrame, TORSO, R_SHOULDER, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-     cv::line(*mFrame, R_SHOULDER, R_ELBOW, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-     cv::line(*mFrame, R_ELBOW, R_HAND, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-     cv::line(*mFrame, L_HIP, L_KNEE, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-     cv::line(*mFrame, L_KNEE, L_FOOT, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-     cv::line(*mFrame, R_HIP, R_KNEE, cv::Scalar(0, 0, 256), LINE_THICKNESS);
-     cv::line(*mFrame, R_KNEE, R_FOOT, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, HEAD, NECK, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, NECK, TORSO, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, TORSO, L_HIP, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, TORSO, R_HIP, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, TORSO, L_SHOULDER, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, L_SHOULDER, L_ELBOW, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, L_ELBOW, L_HAND, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, TORSO, R_SHOULDER, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, R_SHOULDER, R_ELBOW, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, R_ELBOW, R_HAND, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, L_HIP, L_KNEE, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, L_KNEE, L_FOOT, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, R_HIP, R_KNEE, cv::Scalar(0, 0, 256), LINE_THICKNESS);
+     cv::line(mFrame, R_KNEE, R_FOOT, cv::Scalar(0, 0, 256), LINE_THICKNESS);
 }
 

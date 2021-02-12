@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pch.h"
+
 #include "colorlistener.h"
 #include "depthlistener.h"
 #include "bodylistener.h"
@@ -9,15 +11,8 @@
 #include "bodymanager.h"
 #include "recordmanager.h"
 #include "context.h"
-
-#include "OpenNI.h"
-#include "NiTE.h"
-
-#include <array>
-#include <queue>
-#include <map>
-#include <memory>
-
+#include "logger.h"
+#include "chessboard.h"
 
 class KinectApplication
 {
@@ -37,10 +32,9 @@ private:
 
     std::array<openni::Device, KINECT_COUNT> mDev;
     std::shared_ptr<BodyManager> mBodyManager;
-    std::shared_ptr<Viewer> mViewer;
     std::shared_ptr<RecordManager> mRecordManager;
+    std::shared_ptr<Viewer> mViewer;
     std::shared_ptr<Context> mContext;
-    std::map<int, std::string> mKinectViewerMap;
 
     std::array<openni::VideoStream, KINECT_STREAM_COUNT> mStreams;
     std::array<std::queue<openni::VideoFrameRef>, KINECT_STREAM_COUNT> mFrames;
@@ -53,7 +47,6 @@ private:
     std::array<BodyListener*, KINECT_COUNT> mBodyListeners;
 
     uint64_t mReplayStartTime;
-    bool mImmediatePlay;
 };
 
 

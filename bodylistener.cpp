@@ -1,7 +1,6 @@
 #include "bodylistener.h"
 #include "common.h"
 
-#include <iostream>
 
 BodyListener::BodyListener(std::queue<nite::UserTrackerFrameRef> *frames, std::queue<uint64_t> *times, int fps)
 {

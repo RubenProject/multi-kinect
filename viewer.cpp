@@ -1,11 +1,8 @@
 #include "viewer.h"
-#include <cstdlib>
-#include <cmath>
-#include <fstream>
 
 
 Viewer::Viewer(std::shared_ptr<Context> context) 
-    : mContext(context), win_width(600), win_height(400)
+    :win_width(600), win_height(400), mContext(context)
 {
 }
 
@@ -33,6 +30,11 @@ static std::string readShader(const std::string &filename) {
         std::cout << "failed to read shader!" << std::endl;
         return std::string();
     }
+}
+
+void Viewer::setWindowTitle(std::string title)
+{
+    glfwSetWindowTitle(window, title.c_str());
 }
 
 void Viewer::initialize()
@@ -99,12 +101,20 @@ void Viewer::key_callbackstatic(GLFWwindow* window, int key, int scancode, int a
 
 void Viewer::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    //EXIT
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         mContext->mExit = true;
-    if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
+    }
+    //RECORD
+    if ((key == GLFW_KEY_F1 && action == GLFW_PRESS)
+        || (key == GLFW_KEY_PAGE_UP && action == GLFW_PRESS)) {
         mContext->mStartRecord = true;
-    if (key == GLFW_KEY_F2 && action == GLFW_PRESS)
+    }
+    if ((key == GLFW_KEY_F2 && action == GLFW_PRESS)
+        || (key == GLFW_KEY_PAGE_DOWN && action == GLFW_PRESS)) {
         mContext->mStopRecord = true;
+    }
+    //REPLAY
     if (key == GLFW_KEY_F3 && action == GLFW_PRESS) {
         if (mContext->mReplay){
             mContext->mStopReplay = true;
@@ -112,16 +122,18 @@ void Viewer::key_callback(GLFWwindow* window, int key, int scancode, int action,
             mContext->mStartReplay = true;
         }
     }
+    //LOAD
     if (key == GLFW_KEY_F4 && action == GLFW_PRESS) {
         if (!mContext->mReplay){
             mContext->mLoad = true;
         }
     }
-    if (key == GLFW_KEY_PAGE_UP && action == GLFW_PRESS){
-        mContext->mStartRecord = true;
-    }
-    if (key == GLFW_KEY_PAGE_DOWN && action == GLFW_PRESS){
-        mContext->mStopRecord = true;
+    //CALIBRATE
+    if (key == GLFW_KEY_F5 && action == GLFW_PRESS) {
+        if (mContext->mCalibrate)
+            mContext->mStopCalibrate = true;
+        else 
+            mContext->mStartCalibrate = true;
     }
 }
 

@@ -1,11 +1,7 @@
 #pragma once
 
+#include "pch.h"
 #include "body.h"
-#include "OpenNI.h"
-#include "NiTE.h"
-#include <opencv2/core.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
 
 
 class Frame
@@ -18,9 +14,10 @@ public:
     int getHeight() const;
     size_t getBytesPerPixel() const;
     unsigned char *getData() const;
+    cv::Mat getMat();
     size_t getDataSize() const;
     void drawSkeleton(const nite::UserTracker &tUserTracker, const Body &tBody);
 private:
-    std::unique_ptr<cv::Mat> mFrame;
+    cv::Mat mFrame;
     size_t mBytesPerPixel;
 };

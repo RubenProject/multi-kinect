@@ -1,13 +1,9 @@
 #pragma once
 
+#include "pch.h"
+
 #include <libfreenect2/config.h>
 #include <libfreenect2/frame_listener.hpp>
-#include <iostream>
-#include <string>
-#include <map>
-#include <memory>
-
-#include <OpenNI.h>
 #include "flextGL.h"
 #include <GLFW/glfw3.h>
 #include "frame.h"
@@ -279,6 +275,7 @@ public:
     void winsize_callback(GLFWwindow* window, int w, int h);
     static void key_callbackstatic(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void winsize_callbackstatic(GLFWwindow* window, int w, int h);
+    void setWindowTitle(std::string);
 private:
     GLFWwindow* window;
     GLuint triangle_vbo, triangle_vao;

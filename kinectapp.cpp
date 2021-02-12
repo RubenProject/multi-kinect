@@ -1,32 +1,10 @@
 #include "kinectapp.h"
 #include "common.h"
 
-#include <opencv2/opencv.hpp>
-#include <opencv2/core.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
-
-
 
 KinectApplication::KinectApplication()
-    :mImmediatePlay(true)
 {
     mContext = std::make_shared<Context>();
-    mContext->mDrawDepth = false;
-    mContext->mDrawColor = true;
-    mContext->mDrawBody = true;
-    mContext->mPlay = true;
-    mContext->mLoad = false;
-    mContext->mStartRecord = false;
-    mContext->mStopRecord = false;
-    mContext->mReplay = false;
-    mContext->mStartReplay = false;
-    mContext->mStopReplay = false;
-    mContext->mExit = false;
-    mContext->mConf = 0.6;
-    mContext->mFPS = 30;
-    mContext->mShaderFolder = "Res/";
-    mContext->mRecordFolder = "Rec/";
 
     assert(!(mContext->mDrawDepth && mContext->mDrawBody));
 
@@ -36,21 +14,18 @@ KinectApplication::KinectApplication()
     assert(devInfoList.getSize() == 6);
     mDev[KINECT_ID_0].open(devInfoList[0].getUri());
     mDev[KINECT_ID_1].open(devInfoList[3].getUri());
+    //mDev[KINECT_ID_0].setImageRegistrationMode(openni::IMAGE_REGISTRATION_DEPTH_TO_COLOR);
+    //mDev[KINECT_ID_1].setImageRegistrationMode(openni::IMAGE_REGISTRATION_DEPTH_TO_COLOR);
+    mDev[KINECT_ID_0].setDepthColorSyncEnabled(true);
+    mDev[KINECT_ID_1].setDepthColorSyncEnabled(true);
 
-    mKinectViewerMap[KINECT_COLOR_0] = "RGB0";
-    mKinectViewerMap[KINECT_COLOR_1] = "RGB1"; 
-    if (mContext->mDrawDepth){
-        mKinectViewerMap[KINECT_DEPTH_0] = "IR0";
-        mKinectViewerMap[KINECT_DEPTH_1] = "IR1"; 
-    } else if (mContext->mDrawBody) {
-        mKinectViewerMap[KINECT_DEPTH_0] = "BODY0";
-        mKinectViewerMap[KINECT_DEPTH_1] = "BODY1"; 
-    }
+    //std::cout << mDev[KINECT_ID_0].getImageRegistrationMode() << std::endl;
+    //std::cout << mDev[KINECT_ID_1].getImageRegistrationMode() << std::endl;
 }
 
 
 KinectApplication::KinectApplication(std::shared_ptr<Context> context)
-    :mContext(context), mImmediatePlay(true)
+    :mContext(context)
 {
     assert(!(mContext->mDrawDepth && mContext->mDrawBody));
 
@@ -60,30 +35,21 @@ KinectApplication::KinectApplication(std::shared_ptr<Context> context)
     assert(devInfoList.getSize() == 6);
     mDev[KINECT_ID_0].open(devInfoList[0].getUri());
     mDev[KINECT_ID_1].open(devInfoList[3].getUri());
-
-    mKinectViewerMap[KINECT_COLOR_0] = "RGB0";
-    mKinectViewerMap[KINECT_COLOR_1] = "RGB1"; 
-    if (mContext->mDrawDepth){
-        mKinectViewerMap[KINECT_DEPTH_0] = "IR0";
-        mKinectViewerMap[KINECT_DEPTH_1] = "IR1"; 
-    } else if (mContext->mDrawBody) {
-        mKinectViewerMap[KINECT_DEPTH_0] = "BODY0";
-        mKinectViewerMap[KINECT_DEPTH_1] = "BODY1"; 
-    }
 }
 
 
 KinectApplication::~KinectApplication()
 {
+    if (mContext->mDrawBody){
+        mUserTrackers[KINECT_ID_0].removeNewFrameListener(mBodyListeners[KINECT_ID_0]);
+        mUserTrackers[KINECT_ID_1].removeNewFrameListener(mBodyListeners[KINECT_ID_1]);
+        nite::NiTE::shutdown();
+    }
+
     mStreams[KINECT_COLOR_0].removeNewFrameListener(mColorListeners[KINECT_ID_0]);
     mStreams[KINECT_COLOR_1].removeNewFrameListener(mColorListeners[KINECT_ID_1]);
     mStreams[KINECT_DEPTH_0].removeNewFrameListener(mDepthListeners[KINECT_ID_0]);
     mStreams[KINECT_DEPTH_1].removeNewFrameListener(mDepthListeners[KINECT_ID_1]);
-
-    if (mContext->mDrawBody){
-        mUserTrackers[KINECT_ID_0].removeNewFrameListener(mBodyListeners[KINECT_ID_0]);
-        mUserTrackers[KINECT_ID_1].removeNewFrameListener(mBodyListeners[KINECT_ID_1]);
-    }
 
     mStreams[KINECT_COLOR_0].stop();
     mStreams[KINECT_COLOR_1].stop();
@@ -138,6 +104,18 @@ void KinectApplication::initialize()
     mStreams[KINECT_COLOR_1].start();
     mStreams[KINECT_DEPTH_0].start();
     mStreams[KINECT_DEPTH_1].start();
+
+
+    // Test setup
+    //stopListeners();
+    
+    //mBodyManager->load(1);
+    //mBodyManager->save();
+    //assert(mBodyManager->calibrateReady());
+    //mBodyManager->calibrate();
+    //mBodyManager->process();
+    //mContext->mStartReplay = true;
+    mContext->mCalibrate = true;
 }
 
 
@@ -169,7 +147,6 @@ void KinectApplication::stopListeners()
         std::queue<nite::UserTrackerFrameRef> empty;
         std::swap(mBodyFrames[i], empty);
     }
-    //clear the queue's
     for (int i = 0; i < KINECT_STREAM_COUNT; ++i){
         std::queue<openni::VideoFrameRef> empty;
         std::swap(mFrames[i], empty);
@@ -180,12 +157,12 @@ void KinectApplication::stopListeners()
 void KinectApplication::handleBodies()
 {
     for (int i = 0; i < KINECT_COUNT; ++i){
-        while (mImmediatePlay && mBodyFrames[i].size() > 2){
+        while (mContext->mImmediate && mBodyFrames[i].size() > 2){
             mBodyFrames[i].pop();
             mBodyTimes[i].pop();
         }
         if (!mBodyFrames[i].empty()){
-            mBodyManager->addBody(mBodyFrames[i].front(), i, mBodyTimes[i].front());
+            mBodyManager->update(mBodyFrames[i].front(), i, mBodyTimes[i].front());
             mBodyFrames[i].pop();
             mBodyTimes[i].pop();
         }
@@ -196,11 +173,12 @@ void KinectApplication::handleBodies()
 void KinectApplication::handlePlay()
 {
     for (int i = 0; i < KINECT_STREAM_COUNT; ++i){
-        while (mImmediatePlay && mFrames[i].size() > 2){
+        while (mContext->mImmediate && mFrames[i].size() > 2){
             mFrames[i].pop();
         }
         if (!mFrames[i].empty()) {
-            auto frame = std::make_unique<Frame>(mFrames[i].front(), mKinectViewerMap[i]);
+            std::string frameHeader = mContext->mKinectViewerMap[i];
+            auto frame = std::make_unique<Frame>(mFrames[i].front(), frameHeader);
             if (mContext->mDrawBody && i == KINECT_DEPTH_0 
                 && mBodyManager->getReadyState(KINECT_ID_0)) {
                 const Body &body = mBodyManager->getBody(KINECT_ID_0);
@@ -211,7 +189,7 @@ void KinectApplication::handlePlay()
                 const Body &body = mBodyManager->getBody(KINECT_ID_1);
                 frame->drawSkeleton(mUserTrackers[KINECT_ID_1], body);
             }
-            mViewer->addFrame(mKinectViewerMap[i], std::move(frame));
+            mViewer->addFrame(frameHeader, std::move(frame));
             mFrames[i].pop();
         }
     }
@@ -221,64 +199,103 @@ void KinectApplication::handlePlay()
 void KinectApplication::handleReplay()
 {
     for (int i = 0; i < KINECT_COUNT; ++i){
+        std::string frameHeader = mContext->mKinectViewerMap[i];
         const cv::Scalar bgColor(0.f, 0.f, 50.f);
         auto frame = std::make_unique<Frame>(640, 480, bgColor);
         const Body &body = mBodyManager->getNextBody(i, getTimeNow() - mReplayStartTime);
         frame->drawSkeleton(mUserTrackers[i], body);
-        mViewer->addFrame(mKinectViewerMap[i], std::move(frame));
+        mViewer->addFrame(frameHeader, std::move(frame));
     }
 }
 
 
 bool KinectApplication::update()
 {
+    static uint64_t startTime = getTimeNow();
+    if (mContext->mStartCalibrate) {
+        mContext->log(libfreenect2::Logger::Info, "Starting Calibration");
+        mViewer->setWindowTitle("Calibrating");
+        mContext->mCalibrate = true;
+        mContext->mStartCalibrate = false;
+    }
+
+    if (mContext->mStopCalibrate) {
+        mContext->log(libfreenect2::Logger::Info, "Stopping Calibration");
+        mViewer->setWindowTitle("Playing");
+        mContext->mCalibrate = false;
+        mContext->mStopCalibrate = false;
+        mBodyManager->stopCalibrate();
+    }
+
     if (mContext->mStartRecord) {
-        std::cerr << "starting recording" << std::endl;
+        mContext->log(libfreenect2::Logger::Info, "Starting Recording");
+        mViewer->setWindowTitle("Recording");
         mBodyManager->startRecording();
         mContext->mStartRecord = false;
-        mImmediatePlay = false;
+        mContext->mImmediate = false;
     }
 
     if (mContext->mStopRecord) {
-        std::cerr << "stopping recording" << std::endl;
+        mContext->log(libfreenect2::Logger::Info, "Stopping Recording");
+        mViewer->setWindowTitle("Playing");
         mBodyManager->stopRecording();
         mContext->mStopRecord = false;
-        mImmediatePlay = true;
+        mContext->mImmediate = true;
     }
 
     if (mContext->mStartReplay) {
+        mContext->log(libfreenect2::Logger::Info, "Replaying");
         mContext->mReplay = true;
         mContext->mPlay = false;
         mBodyManager->startReplay();
-        this->stopListeners();
+        stopListeners();
         mReplayStartTime = getTimeNow();
         mContext->mStartReplay = false;
     }
 
     if (mContext->mStopReplay) {
+        mContext->log(libfreenect2::Logger::Info, "Live Feed");
         mContext->mReplay = false;
         mContext->mPlay = true;
-        this->startListeners();
+        startListeners();
         mContext->mStopReplay = false;
     }
 
     if (mContext->mLoad) {
-        //TODO change this to be a prompt
-        std::cout << "loading" << std::endl;
-        mBodyManager->load(0);
+        int recordingIdx;
+        mContext->log(libfreenect2::Logger::Info, "Enter Recording ID to be loaded:");
+        std::cin >> recordingIdx;
+        mContext->log(libfreenect2::Logger::Info, "Loading: " + std::to_string(recordingIdx));
+        mBodyManager->load(recordingIdx);
         mContext->mLoad = false;;
     }
 
     if (mContext->mDrawBody) {
-        this->handleBodies();
+        handleBodies();
     }
 
     if (mContext->mPlay) {
-        this->handlePlay();
+        handlePlay();
     } 
 
     if (mContext->mReplay) {
-        this->handleReplay();
+        handleReplay();
+    }
+
+    if (mContext->mCalibrate) {
+        //while (mFrames[KINECT_COLOR_0].empty()) {}
+        //while (mFrames[KINECT_COLOR_1].empty()) {}
+        //auto frame0 = std::make_unique<Frame>(mFrames[KINECT_COLOR_0].back(), "RGB0");
+        //auto frame1 = std::make_unique<Frame>(mFrames[KINECT_COLOR_1].back(), "RGB1");
+        ChessCalib2d calibrator(mContext);
+        //calibrator.saveSample(frame0->getMat(), frame1->getMat(), "Samples/Kinect0.png", "Samples/Kinect1.png");
+        //calibrator.addSample(frame0->getMat(), frame1->getMat());
+        calibrator.loadSample("Samples/Kinect0.png", "Samples/Kinect1.png");
+        if (calibrator.calibrateReady()) {
+            stopListeners();
+            calibrator.calibrate();
+            startListeners();
+        }
     }
 
     return mContext->mExit || mViewer->render();

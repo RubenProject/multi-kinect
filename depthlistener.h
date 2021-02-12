@@ -1,7 +1,7 @@
 #pragma once
 
-#include <queue>
-#include <OpenNI.h>
+#include "pch.h"
+
 
 class DepthListener : public openni::VideoStream::NewFrameListener
 {

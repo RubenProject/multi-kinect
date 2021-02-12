@@ -2,43 +2,19 @@
 
 #include "context.h"
 
-#include <sstream>
-#include <iostream>
 
-
-inline glm::vec3 toGlmVec3(const nite::Point3f &in)
+inline glm::dvec3 toGlmVec3(const nite::Point3f &in)
 {
-    return glm::vec3(in.x, in.y, in.z);
+    return glm::dvec3(in.x, in.y, in.z);
 }
 
 
-inline glm::vec3 toGlmVec3(const glm::vec4 &in)
+inline glm::dvec4 toGlmVec4(const nite::Quaternion &in)
 {
-    glm::vec4 out = in;
-    out /= out[3];
-    return glm::vec3(out.w, out.x, out.y);
+    return glm::dvec4(in.w, in.x, in.y, in.z);
 }
 
-
-inline glm::vec4 toGlmVec4(const nite::Quaternion &in)
-{
-    return glm::vec4(in.w, in.x, in.y, in.z);
-}
-
-
-inline nite::Point3f toNitePoint3f(const glm::vec3 &in)
-{
-    return nite::Point3f(in.x, in.y, in.z);
-}
-
-
-inline nite::Quaternion toNiteQuat(const glm::vec4 &in)
-{
-    return nite::Quaternion(in.w, in.x, in.y, in.z);
-}
-
-
-inline std::string glmToString(const glm::vec3 &in)
+inline std::string glmToString(const glm::dvec3 &in)
 {
     return std::to_string(in.x) + " "
         + std::to_string(in.y) + " " 
@@ -46,12 +22,59 @@ inline std::string glmToString(const glm::vec3 &in)
 }
 
 
-inline std::string glmToString(const glm::vec4 &in)
+inline std::string glmToString(const glm::dvec4 &in)
 {
     return std::to_string(in.w) + " "
         + std::to_string(in.x) + " "
         + std::to_string(in.y) + " " 
         + std::to_string(in.z);
+}
+
+
+namespace YAML {
+    template<>
+    struct convert<glm::dvec3> {
+        static Node encode(const glm::dvec3& rhs) {
+            Node node;
+            node.push_back(rhs.x);
+            node.push_back(rhs.y);
+            node.push_back(rhs.z);
+            return node;
+        }
+
+        static bool decode(const Node& node, glm::dvec3& rhs) {
+            if(!node.IsSequence() || node.size() != 3) {
+                return false;
+            }
+            rhs.x = node[0].as<double>();
+            rhs.y = node[1].as<double>();
+            rhs.z = node[2].as<double>();
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<glm::dvec4> {
+        static Node encode(const glm::dvec4& rhs) {
+            Node node;
+            node.push_back(rhs.x);
+            node.push_back(rhs.y);
+            node.push_back(rhs.z);
+            node.push_back(rhs.w);
+            return node;
+        }
+
+        static bool decode(const Node& node, glm::dvec4& rhs) {
+            if(!node.IsSequence() || node.size() != 4) {
+                return false;
+            }
+            rhs.x = node[0].as<double>();
+            rhs.y = node[1].as<double>();
+            rhs.z = node[2].as<double>();
+            rhs.w = node[3].as<double>();
+            return true;
+        }
+    };
 }
 
 
@@ -65,21 +88,11 @@ Body::Body(const nite::Skeleton &tSkeleton, const nite::Plane &plane, uint64_t t
     setJointOrientations(tSkeleton);
     calcConfidence(tSkeleton);
 
-    glm::vec3 tShoulder, tHip;
-    tShoulder = toGlmVec3(tSkeleton.getJoint(nite::JOINT_LEFT_SHOULDER).getPosition());
-    tShoulder -= toGlmVec3(tSkeleton.getJoint(nite::JOINT_RIGHT_SHOULDER).getPosition());
 
-    tHip = toGlmVec3(tSkeleton.getJoint(nite::JOINT_LEFT_HIP).getPosition());
-    tHip -= toGlmVec3(tSkeleton.getJoint(nite::JOINT_RIGHT_HIP).getPosition());
+    mFloorPlane.point = glm::dvec3(plane.point.x, plane.point.y, plane.point.z);
+    mFloorPlane.normal = glm::dvec3(plane.normal.x, plane.normal.y, plane.normal.z);
 
-    mRight = tHip + tShoulder;
-    mRight = glm::normalize(mRight);
-    //up direction is relative to the ground plane
-    mUp = mFloorPlane.normal;
-    mForward = glm::cross(mRight, mUp);
-
-    mFloorPlane.point = glm::vec3(plane.point.x, plane.point.y, plane.point.z);
-    mFloorPlane.normal = glm::vec3(plane.normal.x, plane.normal.y, plane.normal.z);
+    calcRootOrientations();
 
     mTimeStamp = time;
     mTrajectory = std::vector<Body*>(TRAJECTORY_SIZE, NULL);
@@ -90,117 +103,176 @@ Body::~Body()
 {}
 
 
-Body Body::fromString(const std::string &s) 
+YAML::Node Body::serialize()
 {
-    std::istringstream iss(s);
-    float x, y, z, w;
-    for (int i = 0; i < NITE_JOINT_COUNT; ++i) {
-        iss >> x >> y >> z;
-        setJointPosition(glm::vec3(x, y, z), i);
-    }
-    for (int i = 0; i < NITE_JOINT_COUNT; ++i) {
-        iss >> w >> x >> y >> z;
-        setJointOrientation(glm::vec4(w, x, y, z), i);
-    }
+    YAML::Node body;
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_HEAD));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_NECK));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_LEFT_SHOULDER));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_RIGHT_SHOULDER));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_LEFT_ELBOW));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_RIGHT_ELBOW));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_LEFT_HAND));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_RIGHT_HAND));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_TORSO));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_LEFT_HIP));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_RIGHT_HIP));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_LEFT_KNEE));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_RIGHT_KNEE));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_LEFT_FOOT));
+    body["JOINT_POSITIONS"].push_back(getJointAbsPosition(nite::JOINT_RIGHT_FOOT));
 
-    iss >> x >> y >> z;
-    mFloorPlane.point = glm::vec3(x, y, z);
-    iss >> x >> y >> z;
-    mFloorPlane.normal = glm::vec3(x, y, z);
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_HEAD));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_NECK));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_LEFT_SHOULDER));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_RIGHT_SHOULDER));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_LEFT_ELBOW));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_RIGHT_ELBOW));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_LEFT_HAND));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_RIGHT_HAND));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_TORSO));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_LEFT_HIP));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_RIGHT_HIP));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_LEFT_KNEE));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_RIGHT_KNEE));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_LEFT_FOOT));
+    body["JOINT_ORIENTATIONS"].push_back(getJointOrientation(nite::JOINT_RIGHT_FOOT));
 
-    iss >> mTimeStamp;
-    //ss >> mPosConf;
-    //ss >> mOrientConf;
+    body["FLOOR_PLANE"].push_back(mFloorPlane.point);
+    body["FLOOR_PLANE"].push_back(mFloorPlane.normal);
+
+    body["TIME"] = mTimeStamp;
+    body["POSITION_CONFIDENCE"] = mPosConf;
+    body["ORIENTATION_CONFIDENCE"] = mOrientConf;
     
-    return *this;
+    return body;
 }
 
 
-std::string Body::toString() {
-    std::stringstream ss;
-    ss << glmToString(getJointAbsPosition(nite::JOINT_HEAD)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_NECK)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_LEFT_SHOULDER)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_RIGHT_SHOULDER)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_LEFT_ELBOW)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_RIGHT_ELBOW)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_LEFT_HAND)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_RIGHT_HAND)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_TORSO)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_LEFT_HIP)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_RIGHT_HIP)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_LEFT_KNEE)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_RIGHT_KNEE)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_LEFT_FOOT)) << " ";
-    ss << glmToString(getJointAbsPosition(nite::JOINT_RIGHT_FOOT)) << " ";
-
-    ss << glmToString(getJointOrientation(nite::JOINT_HEAD)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_NECK)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_LEFT_SHOULDER)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_RIGHT_SHOULDER)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_LEFT_ELBOW)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_RIGHT_ELBOW)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_LEFT_HAND)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_RIGHT_HAND)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_TORSO)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_LEFT_HIP)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_RIGHT_HIP)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_LEFT_KNEE)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_RIGHT_KNEE)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_LEFT_FOOT)) << " ";
-    ss << glmToString(getJointOrientation(nite::JOINT_RIGHT_FOOT)) << " ";
-
-    ss << glmToString(mFloorPlane.point) << " ";
-    ss << glmToString(mFloorPlane.normal) << " ";
-
-    ss << mTimeStamp << " ";
-    ss << mPosConf << " ";
-    ss << mOrientConf << " ";
-
-    return ss.str();
-}
-
-
-void Body::convertCoordinates(const glm::mat4x4 &H)
+void Body::deserialize(const YAML::Node &body)
 {
-    mPosHEAD = toGlmVec3(H * glm::vec4(mPosHEAD, 1.0f));
-    mPosNECK = toGlmVec3(H * glm::vec4(mPosNECK, 1.0f));
-    mPosL_SHOULDER = toGlmVec3(H * glm::vec4(mPosL_SHOULDER, 1.0f));
-    mPosR_SHOULDER = toGlmVec3(H * glm::vec4(mPosR_SHOULDER, 1.0f));
-    mPosL_ELBOW = toGlmVec3(H * glm::vec4(mPosL_ELBOW, 1.0f));
-    mPosR_ELBOW = toGlmVec3(H * glm::vec4(mPosR_ELBOW, 1.0f));
-    mPosL_HAND = toGlmVec3(H * glm::vec4(mPosL_HAND, 1.0f));
-    mPosR_HAND = toGlmVec3(H * glm::vec4(mPosR_HAND, 1.0f));
-    mPosTORSO = toGlmVec3(H * glm::vec4(mPosTORSO, 1.0f));
-    mPosL_HIP = toGlmVec3(H * glm::vec4(mPosL_HIP, 1.0f));
-    mPosR_HIP = toGlmVec3(H * glm::vec4(mPosR_HIP, 1.0f));
-    mPosL_KNEE = toGlmVec3(H * glm::vec4(mPosL_KNEE, 1.0f));
-    mPosR_KNEE = toGlmVec3(H * glm::vec4(mPosR_KNEE, 1.0f));
-    mPosL_FOOT = toGlmVec3(H * glm::vec4(mPosL_FOOT, 1.0f));
-    mPosR_FOOT = toGlmVec3(H * glm::vec4(mPosR_FOOT, 1.0f));
+    mPosHEAD = body["JOINT_POSITIONS"][0].as<glm::dvec3>();
+    mPosNECK = body["JOINT_POSITIONS"][1].as<glm::dvec3>();
+    mPosL_SHOULDER = body["JOINT_POSITIONS"][2].as<glm::dvec3>();
+    mPosR_SHOULDER = body["JOINT_POSITIONS"][3].as<glm::dvec3>();
+    mPosL_ELBOW = body["JOINT_POSITIONS"][4].as<glm::dvec3>();
+    mPosR_ELBOW = body["JOINT_POSITIONS"][5].as<glm::dvec3>();
+    mPosL_HAND = body["JOINT_POSITIONS"][6].as<glm::dvec3>();
+    mPosR_HAND = body["JOINT_POSITIONS"][7].as<glm::dvec3>();
+    mPosTORSO = body["JOINT_POSITIONS"][8].as<glm::dvec3>();
+    mPosL_HIP = body["JOINT_POSITIONS"][9].as<glm::dvec3>();
+    mPosR_HIP = body["JOINT_POSITIONS"][10].as<glm::dvec3>();
+    mPosL_KNEE = body["JOINT_POSITIONS"][11].as<glm::dvec3>();
+    mPosR_KNEE = body["JOINT_POSITIONS"][12].as<glm::dvec3>();
+    mPosL_FOOT = body["JOINT_POSITIONS"][13].as<glm::dvec3>();
+    mPosR_FOOT = body["JOINT_POSITIONS"][14].as<glm::dvec3>();
 
-    mPosROOT = toGlmVec3(H * glm::vec4(mPosROOT, 1.0f));
+    mFloorPlane.point = body["FLOOR_PLANE"][0].as<glm::dvec3>();
+    mFloorPlane.normal = body["FLOOR_PLANE"][1].as<glm::dvec3>();
+
+    mTimeStamp = body["TIME"].as<uint64_t>();
+    mPosConf = body["POSITION_CONFIDENCE"].as<float>();
+    mOrientConf = body["ORIENTATION_CONFIDENCE"].as<float>();
+
+    calcRootOrientations();
+}
+
+
+void Body::transform(const glm::dmat3x3 &R, const glm::dvec3 &t)
+{
+    mPosHEAD = R * mPosHEAD + t;
+    mPosNECK = R * mPosNECK + t;
+    mPosL_SHOULDER = R * mPosL_SHOULDER + t;
+    mPosR_SHOULDER = R * mPosR_SHOULDER + t;
+    mPosL_ELBOW = R * mPosL_ELBOW + t;
+    mPosR_ELBOW = R * mPosR_ELBOW + t;
+    mPosL_HAND = R * mPosL_HAND + t;
+    mPosR_HAND = R * mPosR_HAND + t;
+    mPosTORSO = R * mPosTORSO + t;
+    mPosL_HIP = R * mPosL_HIP + t;
+    mPosR_HIP = R * mPosR_HIP + t;
+    mPosL_KNEE = R * mPosL_KNEE + t;
+    mPosR_KNEE = R * mPosR_KNEE + t;
+    mPosL_FOOT = R * mPosL_FOOT + t;
+    mPosR_FOOT = R * mPosR_FOOT + t;
+
+    mPosROOT = R * mPosROOT + t;
 
     //TODO
-    //update rotations as well
+    //update rotations as well??
 }
 
 
-nite::Plane Body::getFloorPlane() const
+void Body::rotateRoot(const glm::dmat3x3 &R)
 {
-    return nite::Plane(nite::Point3f(mFloorPlane.point.x, mFloorPlane.point.y, mFloorPlane.point.z),
-                       nite::Point3f(mFloorPlane.normal.x, mFloorPlane.normal.y, mFloorPlane.normal.z));
+    mPosHEAD = R * (mPosHEAD - mPosROOT) + mPosROOT;
+    mPosNECK = R * (mPosNECK - mPosROOT) + mPosROOT;
+    mPosL_SHOULDER = R * (mPosL_SHOULDER - mPosROOT) + mPosROOT;
+    mPosR_SHOULDER = R * (mPosR_SHOULDER - mPosROOT) + mPosROOT;
+    mPosL_ELBOW = R * (mPosL_ELBOW - mPosROOT) + mPosROOT;
+    mPosR_ELBOW = R * (mPosR_ELBOW - mPosROOT) + mPosROOT;
+    mPosL_HAND = R * (mPosL_HAND - mPosROOT) + mPosROOT;
+    mPosR_HAND = R * (mPosR_HAND - mPosROOT) + mPosROOT;
+    mPosTORSO = R * (mPosTORSO - mPosROOT) + mPosROOT;
+    mPosL_HIP = R * (mPosL_HIP - mPosROOT) + mPosROOT;
+    mPosR_HIP = R * (mPosR_HIP - mPosROOT) + mPosROOT;
+    mPosL_KNEE = R * (mPosL_KNEE - mPosROOT) + mPosROOT;
+    mPosR_KNEE = R * (mPosR_KNEE - mPosROOT) + mPosROOT;
+    mPosL_FOOT = R * (mPosL_FOOT - mPosROOT) + mPosROOT;
+    mPosR_FOOT = R * (mPosR_FOOT - mPosROOT) + mPosROOT;
 }
 
 
-void Body::setFloorPlane(nite::Plane plane)
+double Body::compareTo(const Body &other)
+{
+    glm::dvec3 diff = glm::dvec3(0.0, 0.0, 0.0);
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_HEAD) - other.getJointAbsPosition(nite::JOINT_HEAD));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_NECK) - other.getJointAbsPosition(nite::JOINT_NECK));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_LEFT_SHOULDER) - other.getJointAbsPosition(nite::JOINT_LEFT_SHOULDER));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_RIGHT_SHOULDER) - other.getJointAbsPosition(nite::JOINT_RIGHT_SHOULDER));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_LEFT_ELBOW) - other.getJointAbsPosition(nite::JOINT_LEFT_ELBOW));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_RIGHT_ELBOW) - other.getJointAbsPosition(nite::JOINT_RIGHT_ELBOW));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_LEFT_HAND) - other.getJointAbsPosition( nite::JOINT_LEFT_HAND));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_RIGHT_HAND) - other.getJointAbsPosition(nite::JOINT_RIGHT_HAND));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_TORSO) - other.getJointAbsPosition(nite::JOINT_TORSO));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_LEFT_HIP) - other.getJointAbsPosition(nite::JOINT_LEFT_HIP));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_RIGHT_HIP) - other.getJointAbsPosition(nite::JOINT_RIGHT_HIP));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_LEFT_KNEE) - other.getJointAbsPosition(nite::JOINT_LEFT_KNEE));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_RIGHT_KNEE) - other.getJointAbsPosition(nite::JOINT_RIGHT_KNEE));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_LEFT_FOOT) - other.getJointAbsPosition(nite::JOINT_LEFT_FOOT));
+    diff += glm::abs(getJointAbsPosition(nite::JOINT_RIGHT_FOOT) - other.getJointAbsPosition(nite::JOINT_RIGHT_FOOT));
+
+    return glm::length(diff);
+}
+
+
+void Body::getFloorPlane(nite::Plane &plane)
+{
+    plane = nite::Plane(nite::Point3f(mFloorPlane.point.x, mFloorPlane.point.y, mFloorPlane.point.z),
+                        nite::Point3f(mFloorPlane.normal.x, mFloorPlane.normal.y, mFloorPlane.normal.z));
+}
+
+
+void Body::getFloorPlane(Plane &plane)
+{
+    plane = mFloorPlane;
+}
+
+
+void Body::setFloorPlane(nite::Plane &plane)
 {
     mFloorPlane.point = {plane.point.x, plane.point.y, plane.point.z};
     mFloorPlane.normal = {plane.normal.x, plane.normal.y, plane.normal.z};
 }
 
 
-glm::vec3 Body::getJointAbsPosition(const nite::JointType tJointID) const
+void Body::setFloorPlane(Plane &plane)
+{
+    mFloorPlane = plane;
+}
+
+
+glm::dvec3 Body::getJointAbsPosition(const nite::JointType tJointID) const
 {
     switch (tJointID)
     {
@@ -221,22 +293,22 @@ glm::vec3 Body::getJointAbsPosition(const nite::JointType tJointID) const
         case nite::JOINT_RIGHT_FOOT: return mPosR_FOOT;
         default:
             std::cout << "Joint type not supported!" << std::endl;
-            return glm::vec3(0.0, 0.0, 0.0);
+            return glm::dvec3(0.0, 0.0, 0.0);
     }
 }
 
-glm::vec3 Body::getJointRelPosition(const nite::JointType tJointID) const
+glm::dvec3 Body::getJointRelPosition(const nite::JointType tJointID) const
 {
     return getJointAbsPosition(tJointID) - mPosROOT;
 }
 
-glm::vec3 Body::getRootPosition() const
+glm::dvec3 Body::getRootPosition() const
 {
     return mPosROOT;
 }
 
 
-glm::vec4 Body::getJointOrientation(const nite::JointType tJointID) const
+glm::dvec4 Body::getJointOrientation(const nite::JointType tJointID) const
 {
     switch (tJointID)
     {
@@ -257,24 +329,24 @@ glm::vec4 Body::getJointOrientation(const nite::JointType tJointID) const
         case nite::JOINT_RIGHT_FOOT: return mQuatR_FOOT;
         default:
             std::cout << "Joint type not supported!" << std::endl;
-            return glm::vec4(0.0, 0.0, 0.0, 0.0);
+            return glm::dvec4(0.0, 0.0, 0.0, 0.0);
     }
 }
 
 
-glm::vec3 Body::getForward() const
+glm::dvec3 Body::getForward() const
 {
     return mForward;
 }
 
 
-glm::vec3 Body::getRight() const
+glm::dvec3 Body::getRight() const
 {
     return mRight;
 }
 
 
-glm::vec3 Body::getUp() const
+glm::dvec3 Body::getUp() const
 {
     return mUp;
 }
@@ -284,6 +356,22 @@ uint64_t Body::getTimeStamp() const
 {
     return mTimeStamp;
 }
+
+
+void Body::calcRootOrientations()
+{
+    mPosROOT = (mPosL_HIP + mPosR_HIP) * 0.5;
+
+    glm::dvec3 tShoulder, tHip;
+    tShoulder = mPosL_SHOULDER - mPosR_SHOULDER;
+    tHip = mPosL_HIP - mPosR_HIP;
+    mRight = tHip + tShoulder;
+    mRight = glm::normalize(mRight);
+    //up direction is relative to the ground plane
+    mUp = mFloorPlane.normal;
+    mForward = glm::cross(mRight, mUp);
+}
+
 
 void Body::setTimeStamp(uint64_t time)
 {
@@ -295,10 +383,6 @@ void Body::setJointPositions(const nite::Skeleton &tSkeleton)
 {
     mPosL_HIP = toGlmVec3(tSkeleton.getJoint(nite::JOINT_LEFT_HIP).getPosition());
     mPosR_HIP = toGlmVec3(tSkeleton.getJoint(nite::JOINT_RIGHT_HIP).getPosition());
-
-    mPosROOT = mPosL_HIP;
-    mPosROOT += mPosR_HIP;
-    mPosROOT /=  2;
 
     mPosHEAD = toGlmVec3(tSkeleton.getJoint(nite::JOINT_HEAD).getPosition());
     mPosNECK = toGlmVec3(tSkeleton.getJoint(nite::JOINT_NECK).getPosition());
@@ -316,7 +400,7 @@ void Body::setJointPositions(const nite::Skeleton &tSkeleton)
 }
 
 
-void Body::setJointPosition(const glm::vec3 &pos, const int i)
+void Body::setJointPosition(const glm::dvec3 &pos, const int i)
 {
     switch (i)
     {
@@ -360,7 +444,7 @@ void Body::setJointOrientations(const nite::Skeleton &tSkeleton)
 }
 
 
-void Body::setJointOrientation(const glm::vec4 &quat, const int i)
+void Body::setJointOrientation(const glm::dvec4 &quat, const int i)
 {
     switch (i)
     {

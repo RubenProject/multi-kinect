@@ -3,12 +3,15 @@ CC = g++ -g -Wall -Wextra
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
 CFLAGS = -INiTE2_Include -IOpenNI2_Include -I/usr/local/include/opencv4
-LIBS = -L$(ROOT_DIR) -lNiTE2 -lOpenNI2 -lglfw -lGL -lfreenect2 -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_calib3d
+LIBS = -L$(ROOT_DIR) -lNiTE2 -lOpenNI2 -lglfw -lGL -lfreenect2 -lopencv_core \
+		-lopencv_highgui -lopencv_imgproc -lopencv_calib3d -lopencv_imgcodecs\
+		-lyaml-cpp
 
 
 OBJS = flextGL.o viewer.o main.o colorlistener.o \
 	   depthlistener.o kinectapp.o frame.o body.o \
 	   bodymanager.o bodylistener.o recordmanager.o \
+	   common.o chessboard.o
 
 KinectApp: $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o KinectApp $(LIBS)
@@ -46,8 +49,12 @@ body.o: body.cpp
 recordmanager.o: recordmanager.cpp
 	 $(CC) -c $(CFLAGS) recordmanager.cpp $(LIBS)
 
-skeleton.o: skeleton.cpp
-	 $(CC) -c $(CFLAGS) skeleton.cpp $(LIBS)
+common.o: common.cpp
+	 $(CC) -c $(CFLAGS) common.cpp $(LIBS)
+
+chessboard.o: chessboard.cpp
+	 $(CC) -c $(CFLAGS) chessboard.cpp $(LIBS)
+
 
 clean:
 	rm *.o KinectApp
