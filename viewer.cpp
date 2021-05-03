@@ -1,8 +1,8 @@
 #include "viewer.h"
 
 
-Viewer::Viewer(std::shared_ptr<Context> context) 
-    :win_width(600), win_height(400), mContext(context)
+Viewer::Viewer()
+    :win_width(600), win_height(400)
 {
 }
 
@@ -10,6 +10,7 @@ static void glfwErrorCallback(int error, const char* description)
 {
   std::cerr << "GLFW error " << error << " " << description << std::endl;
 }
+
 
 static std::string readShader(const std::string &filename) {
     std::ifstream is(filename.c_str());
@@ -32,10 +33,12 @@ static std::string readShader(const std::string &filename) {
     }
 }
 
+
 void Viewer::setWindowTitle(std::string title)
 {
     glfwSetWindowTitle(window, title.c_str());
 }
+
 
 void Viewer::initialize()
 {
@@ -64,9 +67,9 @@ void Viewer::initialize()
     flextInit(b);
     gl(b);
 
-    std::string vertexshadersrc = readShader(mContext->mShaderFolder + "common.vs");
-    std::string grayfragmentshader = readShader(mContext->mShaderFolder + "gray.fs");
-    std::string fragmentshader = readShader(mContext->mShaderFolder + "color.fs");
+    std::string vertexshadersrc = readShader(context->mShaderFolder + "common.vs");
+    std::string grayfragmentshader = readShader(context->mShaderFolder + "gray.fs");
+    std::string fragmentshader = readShader(context->mShaderFolder + "color.fs");
 
     renderShader.setVertexShader(vertexshadersrc);
     renderShader.setFragmentShader(fragmentshader);
@@ -79,7 +82,9 @@ void Viewer::initialize()
     glfwSetWindowUserPointer(window, this);
     glfwSetKeyCallback(window, Viewer::key_callbackstatic);
     glfwSetWindowSizeCallback(window, Viewer::winsize_callbackstatic);
+    glfwSetMouseButtonCallback(window, Viewer::mouse_button_callbackstatic);
 }
+
 
 void Viewer::winsize_callbackstatic(GLFWwindow* window, int w, int h)
 {
@@ -87,11 +92,63 @@ void Viewer::winsize_callbackstatic(GLFWwindow* window, int w, int h)
     viewer->winsize_callback(window, w, h);
 }
 
+
 void Viewer::winsize_callback(GLFWwindow* window, int w, int h)
 {
     win_width = w/2;
     win_height = h/2;
 }
+
+
+void Viewer::mouse_button_callbackstatic(GLFWwindow* window, int button, int action, int mods)
+{
+    Viewer* viewer = reinterpret_cast<Viewer*>(glfwGetWindowUserPointer(window));
+    viewer->mouse_button_callback(window, button, action, mods);
+}
+
+
+void Viewer::mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    double xpos, ypos;
+    int frame_xpos, frame_ypos;
+    std::string frameIdx;
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        glfwGetCursorPos(window, &xpos, &ypos);
+        if (xpos < win_width && ypos < win_height ) {
+            frameIdx = context->mKinectViewerMap[0];
+            frame_xpos = xpos;
+            frame_ypos = ypos;
+        } else if (xpos >= win_width && ypos < win_height) {
+            frameIdx = context->mKinectViewerMap[1];
+            frame_xpos = xpos - win_width;
+            frame_ypos = ypos;
+        } else if (xpos < win_width && ypos >= win_height) {
+            frameIdx = context->mKinectViewerMap[2];
+            frame_xpos = xpos;
+            frame_ypos = ypos - win_height;
+        } else if (xpos >= win_width && ypos >= win_height) {
+            frameIdx = context->mKinectViewerMap[3];
+            frame_xpos = xpos - win_width;
+            frame_ypos = ypos - win_height;
+        }
+
+        std::cout << "==============" << std::endl;
+
+        std::shared_ptr<Frame> frame = frames[frameIdx];
+        float xscale = (float)frame->getWidth() / win_width;
+        float yscale = (float)frame->getHeight() / win_height;
+
+        auto pixel1 = frame->getRGBPixel(frame_xpos * xscale, frame_ypos * yscale);
+        std::cout << pixel1 << std::endl;
+
+        auto pixel2 = frame->getDepthPixel(frame_xpos * xscale, frame_ypos * yscale);
+        std::cout << pixel2 << std::endl;
+
+        auto pixel3 = frame->getJointPixel(frame_xpos * xscale, frame_ypos * yscale);
+        std::cout << pixel3 << std::endl;
+    }
+}
+
 
 void Viewer::key_callbackstatic(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -99,43 +156,42 @@ void Viewer::key_callbackstatic(GLFWwindow* window, int key, int scancode, int a
     viewer->key_callback(window, key, scancode, action, mods);
 }
 
+
 void Viewer::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     //EXIT
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-        mContext->mExit = true;
+        context->mExit = true;
     }
     //RECORD
     if ((key == GLFW_KEY_F1 && action == GLFW_PRESS)
         || (key == GLFW_KEY_PAGE_UP && action == GLFW_PRESS)) {
-        mContext->mStartRecord = true;
+        context->mStartRecord = true;
     }
     if ((key == GLFW_KEY_F2 && action == GLFW_PRESS)
         || (key == GLFW_KEY_PAGE_DOWN && action == GLFW_PRESS)) {
-        mContext->mStopRecord = true;
+        context->mStopRecord = true;
     }
     //REPLAY
     if (key == GLFW_KEY_F3 && action == GLFW_PRESS) {
-        if (mContext->mReplay){
-            mContext->mStopReplay = true;
+        if (context->mReplay){
+            context->mStopReplay = true;
         } else {
-            mContext->mStartReplay = true;
+            context->mStartReplay = true;
         }
     }
     //LOAD
     if (key == GLFW_KEY_F4 && action == GLFW_PRESS) {
-        if (!mContext->mReplay){
-            mContext->mLoad = true;
+        if (!context->mReplay){
+            context->mLoad = true;
         }
     }
     //CALIBRATE
     if (key == GLFW_KEY_F5 && action == GLFW_PRESS) {
-        if (mContext->mCalibrate)
-            mContext->mStopCalibrate = true;
-        else 
-            mContext->mStartCalibrate = true;
+        context->mHomography = !context->mHomography;
     }
 }
+
 
 void Viewer::onOpenGLBindingsChanged(OpenGLBindings *b)
 {
@@ -144,6 +200,7 @@ void Viewer::onOpenGLBindingsChanged(OpenGLBindings *b)
     rgb.gl(b);
     ir.gl(b);
 }
+
 
 bool Viewer::render()
 {
@@ -244,8 +301,15 @@ bool Viewer::render()
     return glfwWindowShouldClose(window);
 }
 
-void Viewer::addFrame(std::string id, std::unique_ptr<Frame> frame)
+
+void Viewer::addFrame(std::string id, std::shared_ptr<Frame> frame)
 {
-    frames[id] = std::move(frame);
+    frames[id] = frame;
+}
+
+
+std::shared_ptr<Frame> Viewer::getFrame(std::string id)
+{
+    return frames[id];
 }
 

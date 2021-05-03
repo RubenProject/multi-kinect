@@ -11,7 +11,7 @@
 class BodyManager
 {
 public:
-    BodyManager(std::shared_ptr<Context> context);
+    BodyManager();
     ~BodyManager();
 
     void setUserTrackers(const std::array<nite::UserTracker, KINECT_COUNT> &tTrackers);
@@ -41,7 +41,6 @@ public:
     void load(const int recordingIdx);
     void exportDataset() const;
 
-
     bool calibrateReady();
     void calibrate();
     void process();
@@ -63,6 +62,4 @@ private:
 
     bool mCalibrated;
     bool mRecording;
-
-    std::shared_ptr<Context> mContext;
 };

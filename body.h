@@ -23,8 +23,8 @@ public:
     YAML::Node serialize();
     void deserialize(const YAML::Node &body);
 
-    void transform(const glm::dmat3x3 &R, const glm::dvec3 &t);
-    void rotateRoot(const glm::dmat3x3 &R);
+    void transform(const glm::dmat3 &R, const glm::dvec3 &t);
+    void rotateRoot(const glm::dmat3 &R);
     double compareTo(const Body &other);
 
     glm::dvec3 getRootPosition() const;

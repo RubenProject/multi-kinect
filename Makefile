@@ -11,7 +11,9 @@ LIBS = -L$(ROOT_DIR) -lNiTE2 -lOpenNI2 -lglfw -lGL -lfreenect2 -lopencv_core \
 OBJS = flextGL.o viewer.o main.o colorlistener.o \
 	   depthlistener.o kinectapp.o frame.o body.o \
 	   bodymanager.o bodylistener.o recordmanager.o \
-	   common.o chessboard.o
+	   common.o chessboard.o logger.o
+
+.PHONY: all run KinectApp
 
 KinectApp: $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o KinectApp $(LIBS)
@@ -55,6 +57,14 @@ common.o: common.cpp
 chessboard.o: chessboard.cpp
 	 $(CC) -c $(CFLAGS) chessboard.cpp $(LIBS)
 
+logger.o: logger.cpp
+	 $(CC) -c $(CFLAGS) logger.cpp $(LIBS)
+
+all: KinectApp
+
+run: KinectApp
+	sudo ./Reset/usbreset.sh
+	./KinectApp
 
 clean:
 	rm *.o KinectApp

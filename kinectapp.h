@@ -18,7 +18,6 @@ class KinectApplication
 {
 public:
     KinectApplication();
-    KinectApplication(std::shared_ptr<Context> context);
     ~KinectApplication();
     void initialize();
     bool update();
@@ -26,6 +25,8 @@ private:
     void handlePlay();
     void handleReplay();
     void handleBodies();
+    bool handleCameraCalibration(const int streamIdx);
+    void handleHomography();
 
     void startListeners();
     void stopListeners();
@@ -34,7 +35,7 @@ private:
     std::shared_ptr<BodyManager> mBodyManager;
     std::shared_ptr<RecordManager> mRecordManager;
     std::shared_ptr<Viewer> mViewer;
-    std::shared_ptr<Context> mContext;
+    std::shared_ptr<ChessCalib2d> mCalibrator;
 
     std::array<openni::VideoStream, KINECT_STREAM_COUNT> mStreams;
     std::array<std::queue<openni::VideoFrameRef>, KINECT_STREAM_COUNT> mFrames;

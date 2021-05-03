@@ -1,4 +1,5 @@
 #include "bodymanager.h"
+#include "logger.h"
 
 
 //TODO add a calibration phase where body streams are send to a calibration function
@@ -6,8 +7,8 @@
 //- howmuch downtime is there for the bodystreams
 //- how good is the skeleton confidence
 
-BodyManager::BodyManager(std::shared_ptr<Context> context) 
-    : mCalibrated(true), mRecording(false), mContext(context)
+BodyManager::BodyManager()
+    : mCalibrated(true), mRecording(false)
 {
     for (auto &state : mReadyStates){
         state = false;
@@ -35,20 +36,20 @@ void BodyManager::update(const nite::UserTrackerFrameRef &frame, const int tStre
 
         if (tUser.isVisible()){
             Body body(tSkeleton, frame.getFloor(), time);
-            if (body.getConfidence() <= mContext->mConf)
+            if (body.getConfidence() <= context->mConf)
                 continue;
             mLastBodies[tStreamIdx] = body;
             mReadyStates[tStreamIdx] = true;
 
-            if (mRecording || mContext->mCalibrate) {
+            if (mRecording || context->mHomography) {
                 mBodyVectors[tStreamIdx].push_back(body);
             } 
             break;;
         }
     }
 
-    if (mContext->mCalibrate && calibrateReady()){
-        mContext->log(libfreenect2::Logger::Info, "Calibrating...");
+    if (context->mHomography && calibrateReady()){
+        logger->log(libfreenect2::Logger::Info, "Calibrating...");
         calibrate();
         clearBodies();
     }
@@ -86,8 +87,8 @@ const Body &BodyManager::getNextBody(const int &tStreamIdx, const uint64_t time)
         return mBodyVectors[tStreamIdx][mReplayIdx[tStreamIdx]++];
     }
     if (mReplayIdx[tStreamIdx] == mBodyVectors[tStreamIdx].size()) {
-        mContext->mReplay = false;
-        mContext->mStopReplay = true;
+        context->mReplay = false;
+        context->mStopReplay = true;
     }
     return mBodyVectors[tStreamIdx][mReplayIdx[tStreamIdx]];
 }
@@ -177,7 +178,7 @@ void BodyManager::calibrate()
     }
 
     if (candidates.size() < minSampleCount){
-        mContext->log(libfreenect2::Logger::Debug, "Not enough samples for calibration...");
+        logger->log(libfreenect2::Logger::Debug, "Not enough samples for calibration...");
         return;
     }
 
@@ -210,13 +211,13 @@ void BodyManager::calibrate()
 
     if (success) {
         std::cout << h << std::endl;
-        R = glm::dmat3x3(h.at<double>(0, 0), h.at<double>(0, 1), h.at<double>(0, 2),
-                         h.at<double>(1, 0), h.at<double>(1, 1), h.at<double>(1, 2),
-                         h.at<double>(2, 0), h.at<double>(2, 1), h.at<double>(2, 2));
+        R = glm::dmat3(h.at<double>(0, 0), h.at<double>(0, 1), h.at<double>(0, 2),
+                       h.at<double>(1, 0), h.at<double>(1, 1), h.at<double>(1, 2),
+                       h.at<double>(2, 0), h.at<double>(2, 1), h.at<double>(2, 2));
         t = glm::dvec3(h.at<double>(0, 3), h.at<double>(1, 3), h.at<double>(2, 3));
         mCalibrated = true;
     } else {
-        mContext->log(libfreenect2::Logger::Debug, "Calibration failed");
+        logger->log(libfreenect2::Logger::Debug, "Calibration failed");
         mCalibrated = false;
     }
 }
@@ -229,14 +230,14 @@ void BodyManager::stopCalibrate()
 
 void BodyManager::process()
 {
-    //for (size_t i = 0; i < mBodyVectors[KINECT_ID_1].size(); ++i){
-        //Body b = mBodyVectors[KINECT_ID_1][i];
-        //b.convertCoordinates(R, t);
-        //mCombinedBodyVector.push_back(b);
-    //}
-    //std::swap(mBodyVectors[KINECT_ID_0], mCombinedBodyVector);
-    //std::swap(mBodyVectors[KINECT_ID_1], mBodyVectors[KINECT_ID_0]);
-    //std::swap(mCombinedBodyVector, mBodyVectors[KINECT_ID_1]);
+    for (size_t i = 0; i < mBodyVectors[KINECT_ID_0].size(); ++i){
+        Body b = mBodyVectors[KINECT_ID_0][i];
+        b.transform(R, t);
+        mCombinedBodyVector.push_back(b);
+    }
+
+    //std::swap(mBodyVectors[KINECT_ID_0], mBodyVectors[KINECT_ID_1]);
+    mBodyVectors[KINECT_ID_0] = mCombinedBodyVector;
 
     //const int testIdx = 100;
     //uint64_t time0 = mCombinedBodyVector[testIdx].getTimeStamp();
@@ -260,65 +261,6 @@ void BodyManager::process()
     //std::cout << mCombinedBodyVector[testIdx] << std::endl;
     //std::cout << mBodyVectors[KINECT_ID_1] << std::endl;
     
-
-    /*const uint64_t max_past = 1000, max_future = 1000;
-    const int past_count = 6, future_count = 6;
-
-    for (int i = 0; i < mBodyVectors[0].size(); i++){
-        std::vector<Body*> past;
-        std::vector<Body*> past_cand;
-        std::vector<Body*> future;
-        std::vector<Body*> future_cand;
-        for (int j = i-1; j >= 0; --j){
-            if (mBodyVectors[0][i].getTimeStamp() - mBodyVectors[0][j].getTimeStamp() < max_past)
-                past_cand.push_back(&mBodyVectors[j]);
-            else {
-                break;
-            }
-        }
-
-
-
-
-        for (int j = i+1; j < mBodyVectors[0].size(); ++j){
-            if (mBodyVectors[0][j].getTimeStamp() - mBodyVectors[0][i].getTimestamp() < max_future)
-                future_cand.push_back(&mBodyVectors[j]);
-            else {
-                break;
-            }
-        }
-
-
-
-
-        for (int j = 0; j < past.size(); ++j)
-            mBodyVectors[0][i].setTrajectory(&past[past_count - j], j);
-        }
-
-        mBodyVectors[0][i].setTrajectory(&mBodyVectors[0][i], past_count + 1);
-
-        for (int j = 0; j < future.size(); ++j)
-            mBodyVectors[0][i].setTrajectory(&future[future_count - j], past_count + 1 + j);
-        }
-
-    }
-
-    H = glm::mat4x4(1.0, 0.0, 0.0, 0.0,
-                    0.0, 1.0, 0.0, 0.0,
-                    0.0, 0.0, 1.0, 0.0,
-                    0.0, 0.0, 0.0, 1.0);
-
-    for (auto body : mBodyVectors[0]){
-        auto joint0 = body.getJointRelPosition(nite::JOINT_HEAD);
-        std::cout << joint0.x << ", " << joint0.y << ", " << joint0.z << std::endl;
-        body.convertCoordinates(H);
-        auto joint1 = body.getJointRelPosition(nite::JOINT_HEAD);
-        std::cout << joint1.x << ", " << joint1.y << ", " << joint1.z << std::endl;
-        exit(0x0);
-    }
-
-    */
-
 }
 
 
@@ -328,7 +270,7 @@ void BodyManager::startRecording()
         clearBodies();
         mRecording = true;
     } else {
-        mContext->log(libfreenect2::Logger::Debug, "Not done calibrating!");
+        logger->log(libfreenect2::Logger::Debug, "No homography found!");
     }
 }
 

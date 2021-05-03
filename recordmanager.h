@@ -8,7 +8,7 @@
 class RecordManager
 {
 public:
-    RecordManager(std::shared_ptr<Context> context);
+    RecordManager();
     ~RecordManager();
 
     //void writeRecording(const std::vector<std::string> &bodyString);
@@ -20,5 +20,4 @@ private:
     int getNextIdx();
 
     std::vector<int> mRecordIdx;
-    std::shared_ptr<Context> mContext;
 };

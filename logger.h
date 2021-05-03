@@ -7,21 +7,13 @@
 class Logger : public libfreenect2::Logger
 {
 public:
-    Logger(const char *filename) {
-        if (filename)
-            logfile_.open(filename);
-        level_ = Debug;
-    }
-    bool good()
-    {
-        return logfile_.is_open() && logfile_.good();
-    }
-    virtual void log(Level level, const std::string &message)
-    {
-        logfile_ << "[" << libfreenect2::Logger::level2str(level) << "] " << message << std::endl;
-        std::cout << "[" << libfreenect2::Logger::level2str(level) << "] " << message << std::endl;
-    }
-
+    Logger(const char *filename);
+    bool good();
+    void setLevel(Level level);
+    virtual void log(Level level, const std::string &message);
 private:
+    Level output_level;
     std::ofstream logfile_;
 };
+
+extern Logger *logger;

@@ -7,6 +7,7 @@
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
+#include <opencv2/core/types_c.h>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/highgui.hpp>
@@ -15,6 +16,7 @@
 
 #define GLM_FORCE_SWIZZLE
 #include "glm/glm.hpp"
+#include "glm/gtc/type_ptr.hpp"
 
 #include <memory>
 #include <string>

@@ -263,29 +263,31 @@ struct ShaderProgram : public WithOpenGLBindings
 
 class Viewer : WithOpenGLBindings {
 public:
-    Viewer(std::shared_ptr<Context> context);
+    Viewer();
     void initialize();
     bool getShouldRecord() const;
     bool getShouldStop() const;
 
     virtual void onOpenGLBindingsChanged(OpenGLBindings *b);
     bool render();
-    void addFrame(std::string id, std::unique_ptr<Frame> frame);
     void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+    void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
     void winsize_callback(GLFWwindow* window, int w, int h);
     static void key_callbackstatic(GLFWwindow* window, int key, int scancode, int action, int mods);
+    static void mouse_button_callbackstatic(GLFWwindow* window, int button, int action, int mods);
     static void winsize_callbackstatic(GLFWwindow* window, int w, int h);
+    void addFrame(std::string id, std::shared_ptr<Frame> frame);
+    std::shared_ptr<Frame> getFrame(std::string id);
     void setWindowTitle(std::string);
 private:
     GLFWwindow* window;
     GLuint triangle_vbo, triangle_vao;
     ShaderProgram renderShader;
     ShaderProgram renderGrayShader;
-    std::map<std::string, std::unique_ptr<Frame>> frames;
     Texture<F6C3> rgb;
     Texture<F32C1> ir;
+    std::map<std::string, std::shared_ptr<Frame>> frames;
     int win_width;
     int win_height;
-    std::shared_ptr<Context> mContext;
 };
 

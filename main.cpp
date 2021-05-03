@@ -1,17 +1,26 @@
 #include "kinectapp.h"
 #include "context.h"
+#include "common.h"
+
+
+KinectApplication *app;
+Context *context;
+Logger *logger;
 
 
 int main()
 {
-    KinectApplication kApp;
-    kApp.initialize();
+    context = new Context();
+    logger = new Logger("log.txt");
+    app = new KinectApplication();
 
-    while (true) {
-        if (kApp.update()){
-            break;
-        }
-    }
+    app->initialize();
+
+    while (!app->update()){}
+
+    delete context;
+    delete logger;
+    delete app;
 
     return 0;
 }

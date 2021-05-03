@@ -1,14 +1,14 @@
 #include "recordmanager.h"
 
+#include "logger.h"
 #include "dirent.h"
 
 
-RecordManager::RecordManager(std::shared_ptr<Context> context)
-    :mContext(context)
+RecordManager::RecordManager()
 {
     DIR *dir;
     struct dirent *ent;
-    if ((dir = opendir (mContext->mRecordFolder.c_str())) != NULL) {
+    if ((dir = opendir (context->mRecordFolder.c_str())) != NULL) {
         while ((ent = readdir (dir)) != NULL) {
             if (strcmp(ent->d_name, ".") == 0)
                 continue;
@@ -57,7 +57,7 @@ void RecordManager::writeRecording(const std::array<YAML::Node, KINECT_COUNT> &r
 {
     int lowest_idx = getNextIdx();
     for (size_t i = 0; i < KINECT_COUNT; ++i){
-        std::string name = mContext->mRecordFolder 
+        std::string name = context->mRecordFolder 
                            + "I" + std::to_string(lowest_idx)
                            + "K" + std::to_string(i) + ".yaml";
         std::ofstream fout(name.c_str());
@@ -75,11 +75,11 @@ void RecordManager::readRecording(std::array<YAML::Node, KINECT_COUNT> &root, co
 {
     auto res = std::find(mRecordIdx.begin(), mRecordIdx.end(), idx);
     if (res == std::end(mRecordIdx)) {
-        mContext->log(libfreenect2::Logger::Error ,"Recording not in database");
+        logger->log(libfreenect2::Logger::Error ,"Recording not in database");
         return;
     }
     for (int i = 0; i < KINECT_COUNT; ++i) {
-        std::string name = mContext->mRecordFolder
+        std::string name = context->mRecordFolder
                            + "I" + std::to_string(idx)
                            + "K" + std::to_string(i) + ".yaml";
         root[i] = YAML::LoadFile(name.c_str());

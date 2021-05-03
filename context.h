@@ -2,25 +2,19 @@
 
 #include "pch.h"
 #include "common.h"
-#include "logger.h"
 
 
 struct Context 
 {
     Context() 
         :mDrawDepth(false), mDrawColor(true),  mDrawBody(true),
-        mPlay(true), mLoad(false), 
-        mCalibrate(false), mStartCalibrate(false), mStopCalibrate(false),
+        mPlay(true), mLoad(false), mCamera(false), mHomography(false),
         mStartRecord(false), mStopRecord(false),
         mReplay(false), mStartReplay(false), mStopReplay(false),
         mConf(0.6f), mImmediate(true), mFPS(30),
         mRecordFolder("Rec/"), mShaderFolder("Res/"),
         mExit(false)
     {
-        mLogger = new Logger("log.txt");
-        if (mLogger->good()) {
-            libfreenect2::setGlobalLogger(mLogger);
-        }
         mKinectViewerMap[KINECT_COLOR_0] = "RGB0";
         mKinectViewerMap[KINECT_COLOR_1] = "RGB1";
         if (mDrawDepth) {
@@ -32,12 +26,6 @@ struct Context
         }
 
     }
-    //TODO add constructor with default arguments too
-
-    void log(libfreenect2::Logger::Level level, const std::string &message)
-    {
-        mLogger->log(level, message);
-    }
 
     bool mDrawDepth;
     bool mDrawColor;
@@ -46,7 +34,8 @@ struct Context
     bool mPlay;
     bool mLoad;
 
-    bool mCalibrate;
+    bool mCamera;
+    bool mHomography;
     bool mStartCalibrate;
     bool mStopCalibrate;
 
@@ -65,8 +54,11 @@ struct Context
     std::string mRecordFolder;
     std::string mShaderFolder;
 
-    Logger *mLogger;
     std::map<int, std::string> mKinectViewerMap;
 
     bool mExit;
 };
+
+extern Context *context;
+
+

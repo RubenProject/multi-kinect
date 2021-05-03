@@ -1,81 +1,8 @@
 #include "body.h"
 
+#include "common.h"
 #include "context.h"
 
-
-inline glm::dvec3 toGlmVec3(const nite::Point3f &in)
-{
-    return glm::dvec3(in.x, in.y, in.z);
-}
-
-
-inline glm::dvec4 toGlmVec4(const nite::Quaternion &in)
-{
-    return glm::dvec4(in.w, in.x, in.y, in.z);
-}
-
-inline std::string glmToString(const glm::dvec3 &in)
-{
-    return std::to_string(in.x) + " "
-        + std::to_string(in.y) + " " 
-        + std::to_string(in.z);
-}
-
-
-inline std::string glmToString(const glm::dvec4 &in)
-{
-    return std::to_string(in.w) + " "
-        + std::to_string(in.x) + " "
-        + std::to_string(in.y) + " " 
-        + std::to_string(in.z);
-}
-
-
-namespace YAML {
-    template<>
-    struct convert<glm::dvec3> {
-        static Node encode(const glm::dvec3& rhs) {
-            Node node;
-            node.push_back(rhs.x);
-            node.push_back(rhs.y);
-            node.push_back(rhs.z);
-            return node;
-        }
-
-        static bool decode(const Node& node, glm::dvec3& rhs) {
-            if(!node.IsSequence() || node.size() != 3) {
-                return false;
-            }
-            rhs.x = node[0].as<double>();
-            rhs.y = node[1].as<double>();
-            rhs.z = node[2].as<double>();
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<glm::dvec4> {
-        static Node encode(const glm::dvec4& rhs) {
-            Node node;
-            node.push_back(rhs.x);
-            node.push_back(rhs.y);
-            node.push_back(rhs.z);
-            node.push_back(rhs.w);
-            return node;
-        }
-
-        static bool decode(const Node& node, glm::dvec4& rhs) {
-            if(!node.IsSequence() || node.size() != 4) {
-                return false;
-            }
-            rhs.x = node[0].as<double>();
-            rhs.y = node[1].as<double>();
-            rhs.z = node[2].as<double>();
-            rhs.w = node[3].as<double>();
-            return true;
-        }
-    };
-}
 
 
 Body::Body()
@@ -178,7 +105,7 @@ void Body::deserialize(const YAML::Node &body)
 }
 
 
-void Body::transform(const glm::dmat3x3 &R, const glm::dvec3 &t)
+void Body::transform(const glm::dmat3 &R, const glm::dvec3 &t)
 {
     mPosHEAD = R * mPosHEAD + t;
     mPosNECK = R * mPosNECK + t;
@@ -203,7 +130,7 @@ void Body::transform(const glm::dmat3x3 &R, const glm::dvec3 &t)
 }
 
 
-void Body::rotateRoot(const glm::dmat3x3 &R)
+void Body::rotateRoot(const glm::dmat3 &R)
 {
     mPosHEAD = R * (mPosHEAD - mPosROOT) + mPosROOT;
     mPosNECK = R * (mPosNECK - mPosROOT) + mPosROOT;
@@ -381,22 +308,21 @@ void Body::setTimeStamp(uint64_t time)
 
 void Body::setJointPositions(const nite::Skeleton &tSkeleton)
 {
-    mPosL_HIP = toGlmVec3(tSkeleton.getJoint(nite::JOINT_LEFT_HIP).getPosition());
-    mPosR_HIP = toGlmVec3(tSkeleton.getJoint(nite::JOINT_RIGHT_HIP).getPosition());
-
-    mPosHEAD = toGlmVec3(tSkeleton.getJoint(nite::JOINT_HEAD).getPosition());
-    mPosNECK = toGlmVec3(tSkeleton.getJoint(nite::JOINT_NECK).getPosition());
-    mPosL_SHOULDER = toGlmVec3(tSkeleton.getJoint(nite::JOINT_LEFT_SHOULDER).getPosition());
-    mPosR_SHOULDER = toGlmVec3(tSkeleton.getJoint(nite::JOINT_RIGHT_SHOULDER).getPosition());
-    mPosL_ELBOW = toGlmVec3(tSkeleton.getJoint(nite::JOINT_LEFT_ELBOW).getPosition());
-    mPosR_ELBOW = toGlmVec3(tSkeleton.getJoint(nite::JOINT_RIGHT_ELBOW).getPosition());
-    mPosL_HAND = toGlmVec3(tSkeleton.getJoint(nite::JOINT_LEFT_HAND).getPosition());
-    mPosR_HAND = toGlmVec3(tSkeleton.getJoint(nite::JOINT_RIGHT_HAND).getPosition());
-    mPosTORSO = toGlmVec3(tSkeleton.getJoint(nite::JOINT_TORSO).getPosition());
-    mPosL_KNEE = toGlmVec3(tSkeleton.getJoint(nite::JOINT_LEFT_KNEE).getPosition());
-    mPosR_KNEE = toGlmVec3(tSkeleton.getJoint(nite::JOINT_RIGHT_KNEE).getPosition());
-    mPosL_FOOT = toGlmVec3(tSkeleton.getJoint(nite::JOINT_LEFT_FOOT).getPosition());
-    mPosR_FOOT = toGlmVec3(tSkeleton.getJoint(nite::JOINT_RIGHT_FOOT).getPosition());
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_HEAD).getPosition(), mPosHEAD);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_NECK).getPosition(), mPosNECK);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_LEFT_SHOULDER).getPosition(), mPosL_SHOULDER);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_RIGHT_SHOULDER).getPosition(), mPosR_SHOULDER);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_LEFT_ELBOW).getPosition(), mPosL_ELBOW);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_RIGHT_ELBOW).getPosition(), mPosR_ELBOW);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_LEFT_HAND).getPosition(), mPosL_HAND);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_RIGHT_HAND).getPosition(), mPosR_HAND);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_TORSO).getPosition(), mPosTORSO);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_LEFT_HIP).getPosition(), mPosL_HIP);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_RIGHT_HIP).getPosition(), mPosR_HIP);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_LEFT_KNEE).getPosition(), mPosL_KNEE);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_RIGHT_KNEE).getPosition(), mPosL_KNEE);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_LEFT_FOOT).getPosition(), mPosL_FOOT);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_RIGHT_FOOT).getPosition(), mPosL_FOOT);
 }
 
 
@@ -426,21 +352,21 @@ void Body::setJointPosition(const glm::dvec3 &pos, const int i)
 
 void Body::setJointOrientations(const nite::Skeleton &tSkeleton)
 {
-    mQuatHEAD = toGlmVec4(tSkeleton.getJoint(nite::JOINT_HEAD).getOrientation());
-    mQuatNECK = toGlmVec4(tSkeleton.getJoint(nite::JOINT_NECK).getOrientation());
-    mQuatL_SHOULDER = toGlmVec4(tSkeleton.getJoint(nite::JOINT_LEFT_SHOULDER).getOrientation());
-    mQuatR_SHOULDER = toGlmVec4(tSkeleton.getJoint(nite::JOINT_RIGHT_SHOULDER).getOrientation());
-    mQuatL_ELBOW = toGlmVec4(tSkeleton.getJoint(nite::JOINT_LEFT_ELBOW).getOrientation());
-    mQuatR_ELBOW = toGlmVec4(tSkeleton.getJoint(nite::JOINT_RIGHT_ELBOW).getOrientation());
-    mQuatL_HAND = toGlmVec4(tSkeleton.getJoint(nite::JOINT_LEFT_HAND).getOrientation());
-    mQuatR_HAND = toGlmVec4(tSkeleton.getJoint(nite::JOINT_RIGHT_HAND).getOrientation());
-    mQuatTORSO = toGlmVec4(tSkeleton.getJoint(nite::JOINT_TORSO).getOrientation());
-    mQuatL_HIP = toGlmVec4(tSkeleton.getJoint(nite::JOINT_LEFT_HIP).getOrientation());
-    mQuatR_HIP = toGlmVec4(tSkeleton.getJoint(nite::JOINT_RIGHT_HIP).getOrientation());
-    mQuatL_KNEE = toGlmVec4(tSkeleton.getJoint(nite::JOINT_LEFT_KNEE).getOrientation());
-    mQuatR_KNEE = toGlmVec4(tSkeleton.getJoint(nite::JOINT_RIGHT_KNEE).getOrientation());
-    mQuatL_FOOT = toGlmVec4(tSkeleton.getJoint(nite::JOINT_LEFT_FOOT).getOrientation());
-    mQuatR_FOOT = toGlmVec4(tSkeleton.getJoint(nite::JOINT_RIGHT_FOOT).getOrientation());
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_HEAD).getOrientation(), mQuatHEAD);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_HEAD).getOrientation(), mQuatNECK);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_LEFT_SHOULDER).getOrientation(), mQuatL_SHOULDER);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_RIGHT_SHOULDER).getOrientation(), mQuatR_SHOULDER);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_LEFT_ELBOW).getOrientation(), mQuatL_ELBOW);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_RIGHT_ELBOW).getOrientation(), mQuatR_ELBOW);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_LEFT_HAND).getOrientation(), mQuatL_HAND);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_RIGHT_HAND).getOrientation(), mQuatR_HAND);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_TORSO).getOrientation(), mQuatTORSO);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_LEFT_HIP).getOrientation(), mQuatL_HIP);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_RIGHT_HIP).getOrientation(), mQuatR_HIP);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_LEFT_KNEE).getOrientation(), mQuatL_KNEE);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_RIGHT_KNEE).getOrientation(), mQuatL_KNEE);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_LEFT_FOOT).getOrientation(), mQuatL_FOOT);
+    fromNITE2GLM(tSkeleton.getJoint(nite::JOINT_RIGHT_FOOT).getOrientation(), mQuatL_FOOT);
 }
 
 
