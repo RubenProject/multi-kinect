@@ -29,6 +29,20 @@ cv::Vec3f rotationMatrixToEulerAngles(const cv::Mat &R);
 void composeTransform(const cv::Mat &rvec, const cv::Mat &tvec, cv::Mat &T);
 void decomposeTransform(const cv::Mat &T, cv::Mat &rvec, cv::Mat &tvec);
 
+void invertPose(cv::Mat &rvec, cv::Mat &tvec);
+void transformPoints(std::vector<cv::Point3f> &points, const cv::Mat &rvec, const cv::Mat &tvec);
+void transformPoint(cv::Point3f &point, const cv::Mat &rvec, const cv::Mat &tvec);
+
+void fromCameraToWorldCoordinates(const cv::Mat &rmat, const cv::Mat &tvec, cv::Mat &p);
+void fromWorldToCameraCoordinates(const cv::Mat &rmat, const cv::Mat &tvec, cv::Mat &p);
+
+
+template <typename T>
+void concatenate(std::vector<T> &a, const std::vector<T> &b)
+{
+    a.insert(a.end(), b.begin(), b.end());
+}
+
 
 namespace YAML {
     template<>

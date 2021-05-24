@@ -2,8 +2,7 @@
 
 #include "pch.h"
 
-#include "colorlistener.h"
-#include "depthlistener.h"
+#include "framelistener.h"
 #include "bodylistener.h"
 #include "viewer.h"
 #include "frame.h"
@@ -31,6 +30,8 @@ private:
     void startListeners();
     void stopListeners();
 
+    int getKinectIdx(const int streamIdx);
+
     std::array<openni::Device, KINECT_COUNT> mDev;
     std::shared_ptr<BodyManager> mBodyManager;
     std::shared_ptr<RecordManager> mRecordManager;
@@ -39,8 +40,8 @@ private:
 
     std::array<openni::VideoStream, KINECT_STREAM_COUNT> mStreams;
     std::array<std::queue<openni::VideoFrameRef>, KINECT_STREAM_COUNT> mFrames;
-    std::array<ColorListener*, KINECT_COUNT> mColorListeners;
-    std::array<DepthListener*, KINECT_COUNT> mDepthListeners;
+    std::array<FrameListener*, KINECT_STREAM_COUNT> mFrameListeners;
+    std::array<openni::SensorType, KINECT_STREAM_COUNT> mStreamFrameTypes;
 
     std::array<nite::UserTracker, KINECT_COUNT> mUserTrackers;
     std::array<std::queue<nite::UserTrackerFrameRef>, KINECT_COUNT> mBodyFrames;

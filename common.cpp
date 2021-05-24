@@ -43,53 +43,93 @@ cv::Vec3f rotationMatrixToEulerAngles(const cv::Mat &R)
 }
  
 
-void composeTransform(const cv::Mat &R, const cv::Mat &t, cv::Mat &T)
+void composeTransform(const cv::Mat &rvec, const cv::Mat &tvec, cv::Mat &T)
 {
-    cv::Mat rMat;
+    cv::Mat rmat;
     T = cv::Mat(4, 4, CV_64F);
-    if (R.cols == 1) {
-        cv::Rodrigues(R, rMat);
-    } else {
-        rMat = R;
-    }
+    cv::Rodrigues(rvec, rmat);
 
-    T.at<double>(0, 0) = rMat.at<double>(0, 0);              
-    T.at<double>(1, 0) = rMat.at<double>(1, 0);              
-    T.at<double>(2, 0) = rMat.at<double>(2, 0);              
-    T.at<double>(0, 1) = rMat.at<double>(0, 1);              
-    T.at<double>(1, 1) = rMat.at<double>(1, 1);              
-    T.at<double>(2, 1) = rMat.at<double>(2, 1);
-    T.at<double>(0, 2) = rMat.at<double>(0, 2);
-    T.at<double>(1, 2) = rMat.at<double>(1, 2);
-    T.at<double>(2, 2) = rMat.at<double>(2, 2);
+    T.at<double>(0, 0) = rmat.at<double>(0, 0);              
+    T.at<double>(1, 0) = rmat.at<double>(1, 0);              
+    T.at<double>(2, 0) = rmat.at<double>(2, 0);              
+    T.at<double>(0, 1) = rmat.at<double>(0, 1);              
+    T.at<double>(1, 1) = rmat.at<double>(1, 1);              
+    T.at<double>(2, 1) = rmat.at<double>(2, 1);
+    T.at<double>(0, 2) = rmat.at<double>(0, 2);
+    T.at<double>(1, 2) = rmat.at<double>(1, 2);
+    T.at<double>(2, 2) = rmat.at<double>(2, 2);
  
-    T.at<double>(0, 3) = t.at<double>(0);
-    T.at<double>(1, 3) = t.at<double>(1);
-    T.at<double>(2, 3) = t.at<double>(2);
+    T.at<double>(0, 3) = tvec.at<double>(0);
+    T.at<double>(1, 3) = tvec.at<double>(1);
+    T.at<double>(2, 3) = tvec.at<double>(2);
 
     T.at<double>(3, 3) = 1;
 }
 
 
-void decomposeTransform(const cv::Mat &T, cv::Mat &R, cv::Mat &t)
+void decomposeTransform(const cv::Mat &T, cv::Mat &rvec, cv::Mat &tvec)
 {
+    cv::Mat rmat;
+    rmat = cv::Mat(3, 3, CV_64F);
+    tvec = cv::Mat(3, 1, CV_64F);
 
-    R = cv::Mat(3, 3, CV_64F);
-    t = cv::Mat(3, 1, CV_64F);
+    rmat.at<double>(0, 0) = T.at<double>(0, 0);
+    rmat.at<double>(1, 0) = T.at<double>(1, 0);              
+    rmat.at<double>(2, 0) = T.at<double>(2, 0);              
+    rmat.at<double>(0, 1) = T.at<double>(0, 1);              
+    rmat.at<double>(1, 1) = T.at<double>(1, 1);              
+    rmat.at<double>(2, 1) = T.at<double>(2, 1);
+    rmat.at<double>(0, 2) = T.at<double>(0, 2);
+    rmat.at<double>(1, 2) = T.at<double>(1, 2);
+    rmat.at<double>(2, 2) = T.at<double>(2, 2);
+    cv::Rodrigues(rmat, rvec);
 
-    R.at<double>(0, 0) = T.at<double>(0, 0);
-    R.at<double>(1, 0) = T.at<double>(1, 0);              
-    R.at<double>(2, 0) = T.at<double>(2, 0);              
-    R.at<double>(0, 1) = T.at<double>(0, 1);              
-    R.at<double>(1, 1) = T.at<double>(1, 1);              
-    R.at<double>(2, 1) = T.at<double>(2, 1);
-    R.at<double>(0, 2) = T.at<double>(0, 2);
-    R.at<double>(1, 2) = T.at<double>(1, 2);
-    R.at<double>(2, 2) = T.at<double>(2, 2);
+    tvec.at<double>(0) = T.at<double>(0, 3);
+    tvec.at<double>(1) = T.at<double>(1, 3);
+    tvec.at<double>(2) = T.at<double>(2, 3);
+}
 
-    t.at<double>(0) = T.at<double>(0, 3);
-    t.at<double>(1) = T.at<double>(1, 3);
-    t.at<double>(2) = T.at<double>(2, 3);
+
+void invertPose(cv::Mat &rvec, cv::Mat &tvec)
+{
+    cv::Mat rmat;
+    cv::Rodrigues(rvec, rmat);
+    rmat = rmat.t();
+    tvec = -rmat * tvec;
+    cv::Rodrigues(rmat, rvec);
+}
+
+
+void transformPoints(std::vector<cv::Point3f> &points, const cv::Mat &rvec, const cv::Mat &tvec)
+{
+    for (auto &point : points){
+        transformPoint(point, rvec, tvec);
+    }
+}
+
+
+void transformPoint(cv::Point3f &point, const cv::Mat &rvec, const cv::Mat &tvec)
+{
+    cv::Mat rmat, p;
+    p = cv::Mat(cv::Point3d(point));
+    cv::Rodrigues(rvec, rmat);
+    p = rmat * p;
+    p = p + tvec;
+    point = cv::Point3f(p.at<double>(0), p.at<double>(1), p.at<double>(2));
+}
+
+
+void fromCameraToWorldCoordinates(const cv::Mat &rmat, const cv::Mat &tvec, cv::Mat &p)
+{
+    p = rmat * p;
+    p = p + tvec;
+}
+
+
+void fromWorldToCameraCoordinates(const cv::Mat &rmat, const cv::Mat &tvec, cv::Mat &p)
+{
+    p = p - tvec;
+    p = rmat.inv() * p;
 }
 
 

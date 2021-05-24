@@ -1,5 +1,7 @@
 #include "kinectapp.h"
 
+#include "pch.h"
+
 #include "common.h"
 #include "context.h"
 #include "logger.h"
@@ -7,7 +9,10 @@
 
 KinectApplication::KinectApplication()
 {
+    //validate config
     assert(!(context->mDrawDepth && context->mDrawBody));
+    assert(!(context->mDrawBody && context->mDrawIR));
+    assert(!(context->mDrawDepth && context->mDrawIR));
 
     openni::OpenNI::initialize();
     openni::Array<openni::DeviceInfo> devInfoList;
@@ -19,31 +24,26 @@ KinectApplication::KinectApplication()
     //mDev[KINECT_ID_1].setImageRegistrationMode(openni::IMAGE_REGISTRATION_DEPTH_TO_COLOR);
     mDev[KINECT_ID_0].setDepthColorSyncEnabled(true);
     mDev[KINECT_ID_1].setDepthColorSyncEnabled(true);
+
+
+    mStreamFrameTypes[0] = openni::SensorType::SENSOR_COLOR;
+    mStreamFrameTypes[1] = openni::SensorType::SENSOR_COLOR;
+    if (context->mDrawDepth) {
+        mStreamFrameTypes[2] = openni::SensorType::SENSOR_DEPTH;
+        mStreamFrameTypes[3] = openni::SensorType::SENSOR_DEPTH;
+    } else if (context->mDrawIR) {
+        mStreamFrameTypes[2] = openni::SensorType::SENSOR_IR;
+        mStreamFrameTypes[3] = openni::SensorType::SENSOR_IR;
+    }
 }
 
 
 KinectApplication::~KinectApplication()
 {
     if (context->mDrawBody){
-        //mUserTrackers[KINECT_ID_0].removeNewFrameListener(mBodyListeners[KINECT_ID_0]);
-        //mUserTrackers[KINECT_ID_1].removeNewFrameListener(mBodyListeners[KINECT_ID_1]);
         nite::NiTE::shutdown();
     }
     openni::OpenNI::shutdown();
-
-
-    //mStreams[KINECT_COLOR_0].removeNewFrameListener(mColorListeners[KINECT_ID_0]);
-    //mStreams[KINECT_COLOR_1].removeNewFrameListener(mColorListeners[KINECT_ID_1]);
-    //mStreams[KINECT_DEPTH_0].removeNewFrameListener(mDepthListeners[KINECT_ID_0]);
-    //mStreams[KINECT_DEPTH_1].removeNewFrameListener(mDepthListeners[KINECT_ID_1]);
-
-    //mStreams[KINECT_COLOR_0].stop();
-    //mStreams[KINECT_COLOR_1].stop();
-    //mStreams[KINECT_DEPTH_0].stop();
-    //mStreams[KINECT_DEPTH_1].stop();
-
-    //mDev[KINECT_ID_0].close();
-    //mDev[KINECT_ID_1].close();
 }
 
 
@@ -51,21 +51,24 @@ void KinectApplication::initialize()
 {
     mViewer = std::make_shared<Viewer>();
     mViewer->initialize();
+    mCalibrator = std::make_shared<ChessCalib2d>();
 
     mStreams[KINECT_COLOR_0].create(mDev[KINECT_ID_0], openni::SENSOR_COLOR);
     mStreams[KINECT_COLOR_1].create(mDev[KINECT_ID_1], openni::SENSOR_COLOR);
-    mStreams[KINECT_DEPTH_0].create(mDev[KINECT_ID_0], openni::SENSOR_DEPTH);
-    mStreams[KINECT_DEPTH_1].create(mDev[KINECT_ID_1], openni::SENSOR_DEPTH);
+    //mStreams[KINECT_DEPTH_0].create(mDev[KINECT_ID_0], openni::SENSOR_DEPTH);
+    //mStreams[KINECT_DEPTH_1].create(mDev[KINECT_ID_1], openni::SENSOR_DEPTH);
+    mStreams[KINECT_DEPTH_0].create(mDev[KINECT_ID_0], openni::SENSOR_IR);
+    mStreams[KINECT_DEPTH_1].create(mDev[KINECT_ID_1], openni::SENSOR_IR);
 
-    mColorListeners[KINECT_ID_0] = new ColorListener(&mFrames[KINECT_COLOR_0], context->mFPS);
-    mColorListeners[KINECT_ID_1] = new ColorListener(&mFrames[KINECT_COLOR_1], context->mFPS);
-    mDepthListeners[KINECT_ID_0] = new DepthListener(&mFrames[KINECT_DEPTH_0], context->mFPS);
-    mDepthListeners[KINECT_ID_1] = new DepthListener(&mFrames[KINECT_DEPTH_1], context->mFPS);
+    mFrameListeners[0] = new FrameListener(&mFrames[KINECT_COLOR_0], context->mFPS);
+    mFrameListeners[1] = new FrameListener(&mFrames[KINECT_COLOR_1], context->mFPS);
+    mFrameListeners[2] = new FrameListener(&mFrames[KINECT_DEPTH_0], context->mFPS);
+    mFrameListeners[3] = new FrameListener(&mFrames[KINECT_DEPTH_1], context->mFPS);
 
-    mStreams[KINECT_COLOR_0].addNewFrameListener(mColorListeners[KINECT_ID_0]);
-    mStreams[KINECT_COLOR_1].addNewFrameListener(mColorListeners[KINECT_ID_1]);
-    mStreams[KINECT_DEPTH_0].addNewFrameListener(mDepthListeners[KINECT_ID_0]);
-    mStreams[KINECT_DEPTH_1].addNewFrameListener(mDepthListeners[KINECT_ID_1]);
+    mStreams[KINECT_COLOR_0].addNewFrameListener(mFrameListeners[0]);
+    mStreams[KINECT_COLOR_1].addNewFrameListener(mFrameListeners[1]);
+    mStreams[KINECT_DEPTH_0].addNewFrameListener(mFrameListeners[2]);
+    mStreams[KINECT_DEPTH_1].addNewFrameListener(mFrameListeners[3]);
 
     if (context->mDrawBody){
         nite::NiTE::initialize();
@@ -84,7 +87,6 @@ void KinectApplication::initialize()
 
         mBodyManager->setUserTrackers(mUserTrackers);
         mBodyManager->setRecordManager(mRecordManager);
-        mCalibrator = std::make_shared<ChessCalib2d>();
     } 
 
     mStreams[KINECT_COLOR_0].start();
@@ -92,6 +94,12 @@ void KinectApplication::initialize()
     mStreams[KINECT_DEPTH_0].start();
     mStreams[KINECT_DEPTH_1].start();
 
+    //auto frame_rgb = std::make_shared<Frame>(openni::SensorType::SENSOR_COLOR, 1920, 1080, cv::Scalar(0, 0, 0), nullptr);
+    //auto frame_ir = std::make_shared<Frame>(openni::SensorType::SENSOR_IR, 512, 424, cv::Scalar(0, 0, 0), nullptr);
+    //mViewer->addFrame(frame_rgb, KINECT_ID_0);
+    //mViewer->addFrame(frame_rgb, KINECT_ID_1);
+    //mViewer->addFrame(frame_ir, KINECT_ID_0);
+    //mViewer->addFrame(frame_ir, KINECT_ID_1);
 
     // Test setup
 
@@ -107,15 +115,25 @@ void KinectApplication::initialize()
     //mBodyManager->load(1);
     //mBodyManager->process();
     //context->mStartReplay = true;
+
+    // wait to get one frame of each camera...
+    sleep(2);
+}
+
+
+int KinectApplication::getKinectIdx(const int streamIdx)
+{
+    //simple solution works for now...
+    return streamIdx % 2;
 }
 
 
 void KinectApplication::startListeners()
 {
-    mColorListeners[KINECT_ID_0]->startListening();
-    mColorListeners[KINECT_ID_1]->startListening();
-    mDepthListeners[KINECT_ID_0]->startListening();
-    mDepthListeners[KINECT_ID_1]->startListening();
+    mFrameListeners[0]->startListening();
+    mFrameListeners[1]->startListening();
+    mFrameListeners[2]->startListening();
+    mFrameListeners[3]->startListening();
     if (context->mDrawBody){
         mBodyListeners[KINECT_ID_0]->startListening();
         mBodyListeners[KINECT_ID_1]->startListening();
@@ -125,10 +143,10 @@ void KinectApplication::startListeners()
 
 void KinectApplication::stopListeners()
 {
-    mColorListeners[KINECT_ID_0]->stopListening();
-    mColorListeners[KINECT_ID_1]->stopListening();
-    mDepthListeners[KINECT_ID_0]->stopListening();
-    mDepthListeners[KINECT_ID_1]->stopListening();
+    mFrameListeners[0]->stopListening();
+    mFrameListeners[1]->stopListening();
+    mFrameListeners[2]->stopListening();
+    mFrameListeners[3]->stopListening();
     if (context->mDrawBody){
         mBodyListeners[KINECT_ID_0]->stopListening();
         mBodyListeners[KINECT_ID_1]->stopListening();
@@ -168,9 +186,10 @@ void KinectApplication::handlePlay()
             mFrames[i].pop();
         }
         if (!mFrames[i].empty()) {
-            std::string frameHeader = context->mKinectViewerMap[i];
-            nite::UserTracker *tracker = &mUserTrackers[i/2];
-            auto frame = std::make_shared<Frame>(frameHeader, mFrames[i].front(), tracker);
+            int kinectIdx = getKinectIdx(i);
+            openni::SensorType type = mStreamFrameTypes[i];
+            nite::UserTracker *tracker = &mUserTrackers[kinectIdx];
+            auto frame = std::make_shared<Frame>(type, mFrames[i].front(), tracker);
             if (context->mDrawBody && i == KINECT_DEPTH_0 
                 && mBodyManager->getReadyState(KINECT_ID_0)) {
                 const Body &body = mBodyManager->getBody(KINECT_ID_0);
@@ -181,7 +200,7 @@ void KinectApplication::handlePlay()
                 const Body &body = mBodyManager->getBody(KINECT_ID_1);
                 frame->drawSkeleton(body);
             }
-            mViewer->addFrame(frameHeader, frame);
+            mViewer->addFrame(frame, kinectIdx);
             mFrames[i].pop();
         }
     }
@@ -191,24 +210,26 @@ void KinectApplication::handlePlay()
 void KinectApplication::handleReplay()
 {
     for (int i = 0; i < KINECT_COUNT; ++i){
-        std::string frameHeader = context->mKinectViewerMap[i];
+        int kinectIdx = getKinectIdx(i);
+        openni::SensorType type = mStreamFrameTypes[i];
         const cv::Scalar bgColor(0.f, 0.f, 50.f);
-        auto frame = std::make_shared<Frame>(frameHeader, 640, 480, bgColor, &mUserTrackers[i]);
+        auto frame = std::make_shared<Frame>(type, 640, 480, bgColor, &mUserTrackers[i]);
         const Body &body = mBodyManager->getNextBody(i, getTimeNow() - mReplayStartTime);
         frame->drawSkeleton(body);
-        mViewer->addFrame(frameHeader, frame);
+        mViewer->addFrame(frame, kinectIdx);
     }
 }
 
 
 bool KinectApplication::handleCameraCalibration(const int streamIdx)
 {
-    static uint64_t lastTime[2] = {getTimeNow(), getTimeNow()};
-    static int index[2] = {0, 0};
+    static uint64_t lastTime[KINECT_STREAM_COUNT] = {getTimeNow(), getTimeNow(), getTimeNow(), getTimeNow()};
+    static int index[KINECT_STREAM_COUNT] = {0, 0, 0, 0};
     const std::string streamName = context->mKinectViewerMap[streamIdx];
+    const int kinectIdx = getKinectIdx(streamIdx);
 
     if (mCalibrator->readyCamera(streamIdx)) {
-        mCalibrator->saveCamera("camera_params", streamIdx);
+        mCalibrator->saveCamera(streamIdx);
         return true;
     } else if (mCalibrator->calibrateReadyCamera(streamIdx)) {
         stopListeners();
@@ -219,7 +240,7 @@ bool KinectApplication::handleCameraCalibration(const int streamIdx)
         index[streamIdx]++;
         return false;
     } else if (getTimeNow() - lastTime[streamIdx] > 1000) {
-        std::shared_ptr<Frame> frame = mViewer->getFrame(streamName);
+        auto frame = mViewer->getFrame(mStreamFrameTypes[streamIdx], kinectIdx);
         if (mCalibrator->addSampleCamera(frame, streamIdx)) {
             mCalibrator->saveSampleCamera(frame, std::to_string(index[streamIdx]), streamIdx);
             index[streamIdx]++;
@@ -245,8 +266,8 @@ void KinectApplication::handleHomography()
     //} else if (mCalibrator->loadSampleHomography(std::to_string(index), std::to_string(index))) {
         //index++;
     } else { //if (getTimeNow() - lastTime > 1000) {
-        std::shared_ptr<Frame> frame0 = mViewer->getFrame("RGB0");
-        std::shared_ptr<Frame> frame1 = mViewer->getFrame("RGB1");
+        std::shared_ptr<Frame> frame0 = mViewer->getFrame(openni::SensorType::SENSOR_COLOR, 0);
+        std::shared_ptr<Frame> frame1 = mViewer->getFrame(openni::SensorType::SENSOR_COLOR, 1);
 
         if (mCalibrator->addSampleHomography(frame0, frame1, true)) {
             //mCalibrator->saveSampleHomography(frame0, frame1, std::to_string(index), std::to_string(index));
@@ -328,10 +349,16 @@ bool KinectApplication::update()
     if (context->mCamera) {
         mViewer->setWindowTitle("Calibrating Cameras");
         bool calibrated = true;
-        if (!handleCameraCalibration(KINECT_ID_0)) {
+        if (!handleCameraCalibration(KINECT_COLOR_0)) {
             calibrated = false;
         }
-        if (!handleCameraCalibration(KINECT_ID_1)) {
+        if (!handleCameraCalibration(KINECT_COLOR_1)) {
+            calibrated = false;
+        }
+        if (!handleCameraCalibration(KINECT_DEPTH_0)) {
+            calibrated = false;
+        }
+        if (!handleCameraCalibration(KINECT_DEPTH_1)) {
             calibrated = false;
         }
         if (calibrated) {
@@ -340,14 +367,14 @@ bool KinectApplication::update()
     }
 
     if (getTimeNow() - startTime >= 1000){
-        logger->setLevel(libfreenect2::Logger::None);
-        std::shared_ptr<Frame> frame_rgb0 = mViewer->getFrame("RGB0");
-        std::shared_ptr<Frame> frame_depth0 = mViewer->getFrame("BODY0");
-        mCalibrator->test(frame_rgb0, frame_depth0, 0);
+        //logger->setLevel(libfreenect2::Logger::None);
+        std::shared_ptr<Frame> frame_rgb0 = mViewer->getFrame(openni::SensorType::SENSOR_COLOR, 0);
+        std::shared_ptr<Frame> frame_ir0 = mViewer->getFrame(openni::SensorType::SENSOR_IR, 0);
+        mCalibrator->addRGB2DEPTH(frame_rgb0, frame_ir0, 0);
 
-        std::shared_ptr<Frame> frame_rgb1 = mViewer->getFrame("RGB1");
-        std::shared_ptr<Frame> frame_depth1 = mViewer->getFrame("BODY1");
-        mCalibrator->test(frame_rgb1, frame_depth1, 1);
+        //std::shared_ptr<Frame> frame_rgb1 = mViewer->getFrame(openni::SensorType::SENSOR_COLOR, 1);
+        //std::shared_ptr<Frame> frame_depth1 = mViewer->getFrame(openni::SensorType::SENSOR_DEPTH, 1);
+        //mCalibrator->test(frame_rgb1, frame_depth1, 1);
         //startTime = getTimeNow();
     }
 

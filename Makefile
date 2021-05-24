@@ -1,4 +1,4 @@
-CC = g++ -g -Wall -Wextra
+CC = g++ -g -Wall -Wextra -std=c++2a
 
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
@@ -8,8 +8,8 @@ LIBS = -L$(ROOT_DIR) -lNiTE2 -lOpenNI2 -lglfw -lGL -lfreenect2 -lopencv_core \
 		-lyaml-cpp
 
 
-OBJS = flextGL.o viewer.o main.o colorlistener.o \
-	   depthlistener.o kinectapp.o frame.o body.o \
+OBJS = flextGL.o viewer.o main.o framelistener.o \
+	   kinectapp.o frame.o body.o camera.o \
 	   bodymanager.o bodylistener.o recordmanager.o \
 	   common.o chessboard.o logger.o
 
@@ -18,11 +18,8 @@ OBJS = flextGL.o viewer.o main.o colorlistener.o \
 KinectApp: $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o KinectApp $(LIBS)
 
-colorlistener.o: colorlistener.cpp
-	$(CC) -c $(CFLAGS) colorlistener.cpp $(LIBS)
-
-depthlistener.o: depthlistener.cpp
-	$(CC) -c $(CFLAGS) depthlistener.cpp $(LIBS)
+framelistener.o: framelistener.cpp
+	$(CC) -c $(CFLAGS) framelistener.cpp $(LIBS)
 
 bodylistener.o: bodylistener.cpp
 	$(CC) -c $(CFLAGS) bodylistener.cpp $(LIBS)
@@ -59,6 +56,9 @@ chessboard.o: chessboard.cpp
 
 logger.o: logger.cpp
 	 $(CC) -c $(CFLAGS) logger.cpp $(LIBS)
+
+camera.o: camera.cpp
+	 $(CC) -c $(CFLAGS) camera.cpp $(LIBS)
 
 all: KinectApp
 

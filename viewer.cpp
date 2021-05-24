@@ -1,5 +1,7 @@
 #include "viewer.h"
 
+#include "logger.h"
+
 
 Viewer::Viewer()
     :win_width(600), win_height(400)
@@ -255,7 +257,7 @@ bool Viewer::render()
         gl()->glEnableVertexAttribArray(texcoord_attr);
 
 
-        if (iter->first == "RGB0" || iter->first == "RGB1")
+        if (frame->getType() == openni::SensorType::SENSOR_IR)
         {
             renderShader.use();
 
@@ -266,18 +268,18 @@ bool Viewer::render()
             glDrawArrays(GL_TRIANGLES, 0, 6);
             rgb.deallocate();
         }
-        if (iter->first == "IR0" || iter->first == "IR1")
+        if (frame->getType() == openni::SensorType::SENSOR_COLOR)
         {
-            renderGrayShader.use();
+            renderShader.use();
 
-            ir.allocate(frame->getWidth(), frame->getHeight());
-            memcpy(ir.data, frame->getData(), frame->getDataSize());
-            ir.flipY();
-            ir.upload();
+            rgb.allocate(frame->getWidth(), frame->getHeight());
+            memcpy(rgb.data, frame->getData(), frame->getDataSize());
+            rgb.flipY();
+            rgb.upload();
             glDrawArrays(GL_TRIANGLES, 0, 6);
-            ir.deallocate();
+            rgb.deallocate();
         }
-        if (iter->first == "BODY0" || iter->first == "BODY1")
+        if (frame->getType() == openni::SensorType::SENSOR_DEPTH)
         {
             renderShader.use();
 
@@ -302,14 +304,68 @@ bool Viewer::render()
 }
 
 
-void Viewer::addFrame(std::string id, std::shared_ptr<Frame> frame)
+void Viewer::addFrame(std::shared_ptr<Frame> frame, const int streamIdx)
 {
+    std::string id;
+    openni::SensorType type = frame->getType();
+    switch(type) {
+        case openni::SensorType::SENSOR_IR:
+            id = "IR";
+            break;
+        case openni::SensorType::SENSOR_DEPTH:
+            id = "DEPTH";
+            break;
+        case openni::SensorType::SENSOR_COLOR:
+            id = "RGB";
+            break;
+        default:
+            logger->log(libfreenect2::Logger::Error, "SensorType not supported!");
+            exit(0x0);
+    }
+    id += std::to_string(streamIdx);
     frames[id] = frame;
 }
 
 
-std::shared_ptr<Frame> Viewer::getFrame(std::string id)
+std::shared_ptr<Frame> Viewer::getFrame(openni::SensorType type, const int kinectIdx)
 {
+    std::string id;
+    switch(type) {
+        case openni::SensorType::SENSOR_IR:
+            id = "IR";
+            break;
+        case openni::SensorType::SENSOR_DEPTH:
+            id = "DEPTH";
+            break;
+        case openni::SensorType::SENSOR_COLOR:
+            id = "RGB";
+            break;
+        default:
+            logger->log(libfreenect2::Logger::Error, "SensorType not supported!");
+            exit(0x0);
+    } 
+    id += std::to_string(kinectIdx);
     return frames[id];
+}
+
+bool Viewer::frameReady(openni::SensorType type, const int kinectIdx)
+{
+    std::string id;
+    switch(type) {
+        case openni::SensorType::SENSOR_IR:
+            id = "IR";
+            break;
+        case openni::SensorType::SENSOR_DEPTH:
+            id = "DEPTH";
+            break;
+        case openni::SensorType::SENSOR_COLOR:
+            id = "RGB";
+            break;
+        default:
+            logger->log(libfreenect2::Logger::Error, "SensorType not supported!");
+            exit(0x0);
+    } 
+    id += std::to_string(kinectIdx);
+    return frames.contains(id);
 }
 

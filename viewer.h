@@ -276,8 +276,9 @@ public:
     static void key_callbackstatic(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void mouse_button_callbackstatic(GLFWwindow* window, int button, int action, int mods);
     static void winsize_callbackstatic(GLFWwindow* window, int w, int h);
-    void addFrame(std::string id, std::shared_ptr<Frame> frame);
-    std::shared_ptr<Frame> getFrame(std::string id);
+    void addFrame(std::shared_ptr<Frame> frame, const int kinectIdx);
+    std::shared_ptr<Frame> getFrame(openni::SensorType type, const int kinectIdx);
+    bool frameReady(openni::SensorType type, const int kinectIdx);
     void setWindowTitle(std::string);
 private:
     GLFWwindow* window;

@@ -5,26 +5,44 @@
 
 ChessCalib2d::ChessCalib2d()
 {
-    if (!loadCamera("camera_params", KINECT_ID_0)) {
-        mCameraMat0 = cv::Mat::eye(3, 3, CV_64F);
-    }
-    if (!loadCamera("camera_params", KINECT_ID_1)) {
-        mCameraMat1 = cv::Mat::eye(3, 3, CV_64F);
-    }
+/*
 
-    imageSize = cv::Size(1920, 1080);
+    if (!loadCamera(KINECT_COLOR_0)) {
+        mCamera[KINECT_COLOR_0] = cv::Mat::eye(3, 3, CV_64F);
+        mDist[KINECT_COLOR_0] = cv::Mat::zeros(8, 1, CV_64F);
+    }
+    if (!loadCamera(KINECT_COLOR_1)) {
+        mCamera[KINECT_COLOR_1] = cv::Mat::eye(3, 3, CV_64F);
+        mDist[KINECT_COLOR_1] = cv::Mat::zeros(8, 1, CV_64F);
+    }
+    if (!loadCamera(KINECT_DEPTH_0)) {
+        mCamera[KINECT_DEPTH_0] = cv::Mat::eye(3, 3, CV_64F);
+        mDist[KINECT_DEPTH_0] = cv::Mat::zeros(8, 1, CV_64F);
+    }
+    if (!loadCamera(KINECT_DEPTH_1)) {
+        mCamera[KINECT_DEPTH_1] = cv::Mat::eye(3, 3, CV_64F);
+        mDist[KINECT_DEPTH_1] = cv::Mat::zeros(8, 1, CV_64F);
+    }
+*/
+    mCameraName[KINECT_COLOR_0] = "Res/cam/camera_RGB0_params.yaml";
+    mCameraName[KINECT_COLOR_1] = "Res/cam/camera_RGB1_params.yaml";
+    mCameraName[KINECT_DEPTH_0] = "Res/cam/camera_DEPTH0_params.yaml";
+    mCameraName[KINECT_DEPTH_1] = "Res/cam/camera_DEPTH1_params.yaml";
+
+    mCamera[KINECT_COLOR_0].loadCamera(mCameraName[KINECT_COLOR_0]);
+    mCamera[KINECT_COLOR_1].loadCamera(mCameraName[KINECT_COLOR_1]);
+    mCamera[KINECT_DEPTH_0].loadCamera(mCameraName[KINECT_DEPTH_0]);
+    mCamera[KINECT_DEPTH_1].loadCamera(mCameraName[KINECT_DEPTH_1]);
+
+    imageSizeRGB = cv::Size(1920, 1080);
+    imageSizeDEPTH = cv::Size(512, 424);
     boardSize = cv::Size(9, 6);
     squareEdgeLength = 0.025f; //length of chessboard square in meter
-
-    plotfile0.open("Vis/plot0.txt", std::ofstream::out);
-    plotfile1.open("Vis/plot1.txt", std::ofstream::out);
 }
 
 
 ChessCalib2d::~ChessCalib2d()
 {
-    plotfile0.close();
-    plotfile1.close();
 }
 
 
@@ -39,24 +57,29 @@ bool ChessCalib2d::loadSampleCamera(const std::string &name, const int streamIdx
     std::shared_ptr<Frame> frame;
     cv::Mat img;
 
-    if (streamIdx == KINECT_ID_0) {
-        img = cv::imread("Samples/Cam0/" + name + ".png", cv::IMREAD_COLOR);
-    } else if (streamIdx == KINECT_ID_1) {
-        img = cv::imread("Samples/Cam1/" + name + ".png", cv::IMREAD_COLOR);
-    } else {
-        logger->log(libfreenect2::Logger::Error, "Stream Index out of range");
-        exit(0x0);
+    switch (streamIdx) {
+        case KINECT_COLOR_0:
+            img = cv::imread("Samples/Cam0/" + name + ".png", cv::IMREAD_COLOR);
+            break;
+        case KINECT_COLOR_1:
+            img = cv::imread("Samples/Cam1/" + name + ".png", cv::IMREAD_COLOR);
+            break;
+        case KINECT_DEPTH_0:
+            img = cv::imread("Samples/Cam2/" + name + ".png", cv::IMREAD_COLOR);
+            break;
+        case KINECT_DEPTH_1:
+            img = cv::imread("Samples/Cam3/" + name + ".png", cv::IMREAD_COLOR);
+            break;
+        default:
+            logger->log(libfreenect2::Logger::Error, "Stream Index out of range");
+            exit(0x0);
     }
 
     if (img.empty()) {
         return false;
     }
 
-    if (streamIdx == KINECT_ID_0) {
-        frame = std::make_shared<Frame>("RGB0", img);
-    } else { //KINECT_ID_1
-        frame = std::make_shared<Frame>("RGB1", img);
-    }
+    frame = std::make_shared<Frame>(openni::SensorType::SENSOR_COLOR, img);
 
     return processSampleCamera(frame, streamIdx, false);
 }
@@ -67,28 +90,29 @@ void ChessCalib2d::saveSampleCamera(std::shared_ptr<Frame> frame, const std::str
     const cv::Mat &img = frame->getMat();
     cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
 
-    if (streamIdx == KINECT_ID_0) {
-        cv::imwrite("Samples/Cam0/" + name + ".png", img);
-    } else if (streamIdx == KINECT_ID_1) {
-        cv::imwrite("Samples/Cam1/" + name + ".png", img);
-    } else {
-        logger->log(libfreenect2::Logger::Error, "Stream Index out of range");
-        exit(0x0);
+    switch (streamIdx) {
+        case KINECT_COLOR_0:
+            cv::imwrite("Samples/Cam0/" + name + ".png", img);
+            break;
+        case KINECT_COLOR_1:
+            cv::imwrite("Samples/Cam1/" + name + ".png", img);
+            break;
+        case KINECT_DEPTH_0:
+            cv::imwrite("Samples/Cam2/" + name + ".png", img);
+            break;
+        case KINECT_DEPTH_1:
+            cv::imwrite("Samples/Cam3/" + name + ".png", img);
+            break;
+        default:
+            logger->log(libfreenect2::Logger::Error, "Stream Index out of range");
+            exit(0x0);
     }
 }
 
 
 bool ChessCalib2d::calibrateReadyCamera(const int streamIdx)
 {
-    if (streamIdx == KINECT_ID_0) {
-        return mChessCorners0.size() >= 50;
-    } else if (streamIdx == KINECT_ID_1) {
-        return mChessCorners1.size() >= 50;
-    } else {
-        logger->log(libfreenect2::Logger::Error, "Stream Index out of range");
-        exit(0x0);
-    }
-    return false;
+    return mChessCorners[streamIdx].size() >= 50;
 }
 
 
@@ -96,12 +120,17 @@ bool ChessCalib2d::calibrateCamera(const int streamIdx)
 {
     std::vector<std::vector<cv::Point3f>> objpoints(1);
     std::vector<std::vector<cv::Point2f>> imgpoints;
+    cv::Size imageSize;
 
-    if (streamIdx == KINECT_ID_0) {
-        imgpoints = mChessCorners0;
-    } else { //KINECT_ID_1
-        imgpoints = mChessCorners1;
+    if (streamIdx == KINECT_COLOR_0 || streamIdx == KINECT_COLOR_1) {
+        imageSize = imageSizeRGB;
+    } else if (streamIdx == KINECT_DEPTH_0 || streamIdx == KINECT_DEPTH_1) {
+        imageSize = imageSizeDEPTH;
+    } else {
+        logger->log(libfreenect2::Logger::Error, "Stream Index out of range");
+        exit(0x0);
     }
+    imgpoints = mChessCorners[streamIdx];
 
     createKnownBoardPositions(boardSize, squareEdgeLength, objpoints[0]);
     objpoints.resize(imgpoints.size(), objpoints[0]);
@@ -114,15 +143,9 @@ bool ChessCalib2d::calibrateCamera(const int streamIdx)
     // CALIB_FIX_ASPECT_RATIO
     // CALIB_USE_INTRINSIC_GUESS
 
-    if (streamIdx == KINECT_ID_0) {
-        mCameraMat0 = cameraMat;
-        mDistCoeffs0 = distCoeffs;
-        mChessCorners0.clear();
-    } else { //KINECT_ID_1
-        mCameraMat1 = cameraMat;
-        mDistCoeffs1 = distCoeffs;
-        mChessCorners1.clear();
-    }
+    mCamera[streamIdx].setIntrinsics(cameraMat, distCoeffs);
+    //mCamera[streamIdx].saveCamera(mCameraName[streamIdx]);
+
     return true;
 }
 
@@ -138,16 +161,11 @@ bool ChessCalib2d::processSampleCamera(std::shared_ptr<Frame> frame, const int s
             cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
 
     if (found) {
+        logger->log(libfreenect2::Logger::Info, "Found Sample");
         cv::cornerSubPix(gray, corners, cv::Size(11, 11), cv::Size(-1, -1),
                 cv::TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.1));
 
-        if (streamIdx == KINECT_ID_0) {
-            mChessCorners0.push_back(corners);
-        } else if (streamIdx == KINECT_ID_1) {
-            mChessCorners1.push_back(corners);
-        } else {
-            return false;
-        }
+        mChessCorners[streamIdx].push_back(corners);
     }
 
     if (found && showResult) {
@@ -160,83 +178,59 @@ bool ChessCalib2d::processSampleCamera(std::shared_ptr<Frame> frame, const int s
 
 bool ChessCalib2d::readyCamera(const int streamIdx)
 {
-    if (streamIdx == KINECT_ID_0) {
-        cv::Mat diff = mCameraMat0 != cv::Mat::eye(3, 3, CV_64F);
-        return cv::countNonZero(diff) != 0;
-    } else if (streamIdx == KINECT_ID_1) {
-        cv::Mat diff = mCameraMat1 != cv::Mat::eye(3, 3, CV_64F);
-        return cv::countNonZero(diff) != 0;
-    } else {
-        return false;
-    }
-}
-
-void ChessCalib2d::getCamera(glm::dmat3 &K, std::vector<double> &distcoefs, const int streamIdx)
-{
-    //TODO
+    return mCamera[streamIdx].hasIntrinsics();
 }
 
 
-bool ChessCalib2d::loadCamera(const std::string &name, const int streamIdx)
+bool ChessCalib2d::loadCamera(const int streamIdx)
 {
     YAML::Node node;
     std::string fullname;
-    if (streamIdx == KINECT_ID_0){
-        fullname = "Res/cam0/" + name + ".yaml";
-    } else if (streamIdx == KINECT_ID_1) {
-        fullname = "Res/cam1/" + name + ".yaml";
-    } else {
-        logger->log(libfreenect2::Logger::Error, "Stream Index out of range");
-        return false;
-    }
+
+    fullname = mCameraName[streamIdx];
+
     try {
         node = YAML::LoadFile(fullname);
     } catch (std::exception &e) {
         logger->log(libfreenect2::Logger::Info, "No camera matrix found.");
         return false;
     }
+
     std::vector<double> distcoeffs;
+
     double fx = node["fx"].as<double>();
     double fy = node["fy"].as<double>();
     double cx = node["cx"].as<double>();
     double cy = node["cy"].as<double>();
     distcoeffs = node["dist"].as<std::vector<double>>();
 
-
     double *data = new double[9]{fx,  0.0, cx, 0.0, fy,  cy, 0.0, 0.0, 1.0};
-    if (streamIdx == KINECT_ID_0) {
-        mCameraMat0 = cv::Mat(3, 3, CV_64F, data);
-        mDistCoeffs0 = cv::Mat(distcoeffs);
-    } else { //KINECT_ID_1
-        mCameraMat1 = cv::Mat(3, 3, CV_64F, data);
-        mDistCoeffs1 = cv::Mat(distcoeffs);
-    } 
+
+    cv::Mat cam = cv::Mat(3, 3, CV_64F, data);
+    cv::Mat dist = cv::Mat(distcoeffs);
+
+    //mCamera[streamIdx] = cam.clone();
+    //mDist[streamIdx] = dist.clone();
+
     return true;
 }
 
 
-bool ChessCalib2d::saveCamera(const std::string &name, const int streamIdx)
+bool ChessCalib2d::saveCamera(const int streamIdx)
 {
     YAML::Node node;
     std::string fullname;
-    if (streamIdx == KINECT_ID_0) {
-        fullname = "Res/cam0/" + name + ".yaml";
-        node["fx"] = mCameraMat0.at<double>(0, 0);
-        node["fy"] = mCameraMat0.at<double>(1, 1);
-        node["cx"] = mCameraMat0.at<double>(0, 2);
-        node["cy"] = mCameraMat0.at<double>(1, 2);
-        for (int i = 0; i < mDistCoeffs0.rows; i++){
-            node["dist"].push_back(mDistCoeffs0.at<double>(i, 0));
-        }
-    } else if (streamIdx == KINECT_ID_1) {
-        fullname = "Res/cam1/" + name + ".yaml";
-        node["fx"] = mCameraMat1.at<double>(0, 0);
-        node["fy"] = mCameraMat1.at<double>(1, 1);
-        node["cx"] = mCameraMat1.at<double>(0, 2);
-        node["cy"] = mCameraMat1.at<double>(1, 2);
-        for (int i = 0; i < mDistCoeffs1.rows; i++){
-            node["dist"].push_back(mDistCoeffs1.at<double>(i, 0));
-        }
+
+    fullname = mCameraName[streamIdx];
+    cv::Mat cam = mCamera[streamIdx];
+    cv::Mat dist = mDist[streamIdx];
+
+    node["fx"] = cam.at<double>(0, 0);
+    node["fy"] = cam.at<double>(1, 1);
+    node["cx"] = cam.at<double>(0, 2);
+    node["cy"] = cam.at<double>(1, 2);
+    for (int i = 0; i < dist.rows; i++){
+        node["dist"].push_back(dist.at<double>(i, 0));
     }
 
     std::ofstream fout(fullname.c_str());
@@ -260,8 +254,8 @@ bool ChessCalib2d::loadSampleHomography(const std::string &name0, const std::str
     if (img0.empty() || img1.empty()) {
         return false;
     }
-    std::shared_ptr<Frame> frame0 = std::make_shared<Frame>("RGB0", img0);
-    std::shared_ptr<Frame> frame1 = std::make_shared<Frame>("RGB1", img1);
+    std::shared_ptr<Frame> frame0 = std::make_shared<Frame>(openni::SensorType::SENSOR_COLOR, img0);
+    std::shared_ptr<Frame> frame1 = std::make_shared<Frame>(openni::SensorType::SENSOR_COLOR, img1);
     return processSampleHomography(frame0, frame1);
 }
 
@@ -356,13 +350,14 @@ bool ChessCalib2d::processSampleHomography(std::shared_ptr<Frame> frame0, std::s
 }
 
 
-bool ChessCalib2d::findPoseFromChessboard(std::shared_ptr<Frame> frame_rgb, const cv::Mat &cam, const cv::Mat &dist, 
+bool ChessCalib2d::findPoseFromChessboard(std::shared_ptr<Frame> frame, const cv::Mat &cam, const cv::Mat &dist, 
         cv::Mat &rvec, cv::Mat &tvec)
 {
     cv::Mat gray, R;
     std::vector<cv::Point3f> objpoints;
     std::vector<cv::Point2f> corners;
-    cv::cvtColor(frame_rgb->getMat(), gray, cv::COLOR_BGR2GRAY);
+
+    cv::cvtColor(frame->getMat(), gray, cv::COLOR_BGR2GRAY);
 
     bool found = cv::findChessboardCorners(gray, boardSize, corners, 
             cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE | cv::CALIB_CB_FAST_CHECK);
@@ -374,90 +369,109 @@ bool ChessCalib2d::findPoseFromChessboard(std::shared_ptr<Frame> frame_rgb, cons
         createKnownBoardPositions(boardSize, squareEdgeLength, objpoints);
         cv::solvePnP(objpoints, corners, cam, dist, rvec, tvec);
 
-        //frame_rgb->drawFrameAxes(cam, dist, rvec, tvec);
-
-        //std::cout << "==========" << std::endl;
-        //std::cout << tvec << std::endl;
-
-        //objpoints.clear();
-
-        //createKnownBoardPositions(boardSize, squareEdgeLength * 1000, objpoints);
-        //cv::solvePnP(objpoints, corners, cam, dist, rvec, tvec);
-
-        //std::cout << "++++++++++" << std::endl;
-        //std::cout << tvec << std::endl;
-
-
         //cv::Mat flipMatrix = (cv::Mat_<double>(3,3) << 0,0,1,  0,1,0,  -1,0,0);
 
         //Invert the model coordinates to get the camera coordinates
-        cv::Rodrigues(rvec, R);
-        R = R.t();
-        tvec = -R * tvec;
-        cv::Rodrigues(R, rvec);
+        invertPose(rvec, tvec);
     }
     return found;
 }
 
 
-void ChessCalib2d::test(std::shared_ptr<Frame> frame_rgb, std::shared_ptr<Frame> frame_depth, const int streamIdx)
+void ChessCalib2d::addRGB2DEPTH(std::shared_ptr<Frame> frame_rgb, std::shared_ptr<Frame> frame_ir, const int kinectIdx)
 {
-    cv::Mat rvec, rmat, tvec;
+    cv::Mat camRGB, distRGB, camDEPTH, distDEPTH;
+    std::vector<cv::Point3f> objpointsRGB, objpointsDEPTH;
+    bool foundRGB, foundDEPTH;
+    cv::Mat rvecRGB, rvecDEPTH, tvecRGB, tvecDEPTH;
+    cv::Mat rmatRGB, rmatDEPTH;
+    cv::Mat mRGB, mDEPTH;
 
-    cv::Mat cam, dist;
-    if (streamIdx == 0) {
-        cam = mCameraMat0;
-        dist = mDistCoeffs0;
+    if (kinectIdx == KINECT_ID_0) {
+        camRGB = mCamera[KINECT_COLOR_0];
+        distRGB = mDist[KINECT_COLOR_0];
+        camDEPTH = mCamera[KINECT_DEPTH_0];
+        distDEPTH = mDist[KINECT_DEPTH_0];
     } else {
-        cam = mCameraMat1;
-        dist = mDistCoeffs1;
+        camRGB = mCamera[KINECT_COLOR_1];
+        distRGB = mDist[KINECT_COLOR_1];
+        camDEPTH = mCamera[KINECT_DEPTH_1];
+        distDEPTH = mDist[KINECT_DEPTH_1];
     }
+    
+    {
+        cv::Mat rvec, tvec;
+        foundRGB = findPoseFromChessboard(frame_rgb, camRGB, distRGB, rvec, tvec);
+        if (foundRGB) { 
+            rvecRGB = rvec.clone();
+            tvecRGB = tvec.clone();
 
-    bool found = findPoseFromChessboard(frame_rgb, cam, dist, rvec, tvec);
-
-
-    if (found) {
-        std::vector<cv::Point3f> objpoints;
-        std::vector<cv::Point2f> corners;
-
-        createKnownBoardPositions(boardSize, squareEdgeLength, objpoints);
-
-        cv::Rodrigues(rvec, rmat);
-        rmat = rmat.t();
-        tvec = -rmat * tvec;
-        cv::Rodrigues(rmat, rvec);
-
-        //cv::Mat depthCam = (cv::Mat_<double>(3, 3) << 363.484,0,256, 0,363.484,212, 0,0,1);
-        cv::Mat depthCam = (cv::Mat_<double>(3, 3) << 363.484,0,252.954, 0,363.484,209.023, 0,0,1);
-        cv::Mat depthDist = (cv::Mat_<double>(5, 1, CV_64F) << 0.0908344, -0.271442, 0.0981953, 0, 0);
-        //cv::Mat depthDist = (cv::Mat_<double>(5, 1, CV_64F) << 0, 0, 0, 0, 0);
-
-        cv::projectPoints(objpoints, rvec, tvec, cam, dist, corners);
-
-        frame_rgb->drawFrameAxes(cam, dist, rvec, tvec);
-        frame_rgb->drawChessboard(boardSize, corners);
-
-        objpoints.clear();
-        corners.clear();
-
-        createKnownBoardPositions(boardSize, squareEdgeLength, objpoints);
-
-        cv::projectPoints(objpoints, rvec, tvec, depthCam, depthDist, corners);
-
-        frame_depth->drawFrameAxes(depthCam, depthDist, rvec, tvec);
-        frame_depth->drawChessboard(boardSize, corners);
-
-        /*
-        for (auto &v : objpoints) {
-            cv::Mat vMat = cv::Mat(v);
-            vMat.convertTo(vMat, CV_64F);
-            cv::Mat tMat = cv::Mat(tvec);
-            vMat = rmat * vMat + tMat;
-            v = cv::Point3f(vMat.at<double>(0), vMat.at<double>(1), vMat.at<double>(2));
+            std::vector<cv::Point2f> corners;
+            invertPose(rvec, tvec);
+            createKnownBoardPositions(boardSize, squareEdgeLength, objpointsRGB);
+            cv::projectPoints(objpointsRGB, rvec, tvec, camRGB, distRGB, corners);
+            transformPoints(objpointsRGB, rvec, tvec);
+            frame_rgb->drawFrameAxes(camRGB, distRGB, rvec, tvec);
+            frame_rgb->drawChessboard(boardSize, corners);
+            mRGB = tvec;
         }
-        frame_depth->draw3DPoints(objpoints);
-        */
     }
+
+    {
+        cv::Mat rvec, tvec;
+        foundDEPTH = findPoseFromChessboard(frame_ir, camDEPTH, distDEPTH, rvec, tvec);
+        if (foundDEPTH) { 
+            rvecDEPTH = rvec.clone();
+            tvecDEPTH = tvec.clone();
+
+            std::vector<cv::Point2f> corners;
+            invertPose(rvec, tvec);
+            createKnownBoardPositions(boardSize, squareEdgeLength, objpointsDEPTH);
+            cv::projectPoints(objpointsDEPTH, rvec, tvec, camDEPTH, distDEPTH, corners);
+            transformPoints(objpointsDEPTH, rvec, tvec);
+            frame_ir->drawFrameAxes(camDEPTH, distDEPTH, rvec, tvec);
+            frame_ir->drawChessboard(boardSize, corners);
+            mDEPTH = tvec;
+        }
+    }
+
+
+    if (foundRGB && foundDEPTH) {
+        cv::Mat T;
+        std::cout << "===========" << std::endl;
+
+        cv::Rodrigues(rvecRGB, rmatRGB);
+        cv::Rodrigues(rvecDEPTH, rmatDEPTH);
+
+        T = rmatRGB.inv() *  rmatDEPTH;
+
+        std::cout << mRGB << std::endl;
+        std::cout << mDEPTH << std::endl;
+
+        mRGB = mRGB - tvecDEPTH;
+
+        std::cout << mRGB << std::endl;
+
+        mRGB = T * mRGB;
+
+        std::cout << mRGB << std::endl;
+
+        mRGB = mRGB + tvecRGB;
+
+        std::cout << mRGB << std::endl;
+        std::cout << mRGB - mDEPTH << std::endl;
+    }
+
+
+    /*
+    std::cout << rvec << std::endl;
+    std::cout << "H: " << tvec << std::endl;
+    std::cout << "H: " << pRGB - pDEPTH << std::endl;
+    std::cout << "========================" << std::endl;
+    std::cout << pRGB << std::endl;
+    std::cout << pDEPTH << std::endl;
+    */
+
 }
 
 
@@ -473,8 +487,9 @@ void ChessCalib2d::createKnownBoardPositions(cv::Size boardSize, float squareEdg
 
 bool ChessCalib2d::calibrateReadyHomography()
 {
-    assert(mChessCorners0.size() == mChessCorners1.size());
-    return mChessCorners0.size() >= 10;
+    assert(mChessCorners[KINECT_COLOR_0].size() == mChessCorners[KINECT_COLOR_1].size());
+    //assert(mChessCorners[KINECT_DEPTH_0].size() == mChessCorners[KINECT_DEPTH_1].size());
+    return mChessCorners[KINECT_COLOR_0].size() >= 10;
 }
 
 
@@ -482,19 +497,19 @@ bool ChessCalib2d::calibrateHomography()
 {
     std::vector<cv::Point2d> imageCoordinates0, imageCoordinates1;
 
-    for (auto &v : mChessCorners0){
+    for (auto &v : mChessCorners[KINECT_COLOR_0]){
         for (auto &c : v) {
             imageCoordinates0.push_back(c);
         }
     }
-    for (auto &v : mChessCorners1){
+    for (auto &v : mChessCorners[KINECT_COLOR_1]){
         for (auto &c : v) {
             imageCoordinates1.push_back(c);
         }
     }
 
-    cv::undistortPoints(imageCoordinates0, imageCoordinates0, mCameraMat0, cv::noArray(), cv::noArray(), cv::noArray());
-    cv::undistortPoints(imageCoordinates1, imageCoordinates1, mCameraMat1, cv::noArray(), cv::noArray(), cv::noArray());
+    cv::undistortPoints(imageCoordinates0, imageCoordinates0, mCamera[KINECT_COLOR_0], cv::noArray(), cv::noArray(), cv::noArray());
+    cv::undistortPoints(imageCoordinates1, imageCoordinates1, mCamera[KINECT_COLOR_1], cv::noArray(), cv::noArray(), cv::noArray());
 
     cv::Mat E, rVec, tVec, mask;
     E = cv::findEssentialMat(imageCoordinates0, imageCoordinates1, cv::Mat::eye(3, 3, CV_64F), cv::RANSAC, 0.99, 3.0, mask);
@@ -503,8 +518,10 @@ bool ChessCalib2d::calibrateHomography()
     fromCV2GLM(rVec, &R);
     fromCV2GLM(tVec, &t);
 
-    mChessCorners0.clear();
-    mChessCorners1.clear();
+    mChessCorners[KINECT_COLOR_0].clear();
+    mChessCorners[KINECT_COLOR_1].clear();
+    mChessCorners[KINECT_DEPTH_0].clear();
+    mChessCorners[KINECT_DEPTH_1].clear();
 
     return true;
 }

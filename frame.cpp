@@ -1,34 +1,39 @@
 #include "frame.h"
+
 #include "common.h"
+#include "logger.h"
 
 #include <iostream>
 
 
-Frame::Frame(const std::string &frameType, const int width, const int height, const cv::Scalar color, nite::UserTracker *tracker)
+Frame::Frame(openni::SensorType type, const int width, const int height, const cv::Scalar color, nite::UserTracker *tracker)
 {
-    mFrameType = frameType;
+    mSensorType = type;
     mUserTracker = tracker;
     mFrame = cv::Mat(height, width, CV_8UC3, color);
     mBytesPerPixel = 3;
 }
 
 
-Frame::Frame(const std::string &frameType, const openni::VideoFrameRef &frame, nite::UserTracker *tracker)
+Frame::Frame(openni::SensorType type, const openni::VideoFrameRef &frame, nite::UserTracker *tracker)
 {
+    mSensorType = type;
     mUserTracker = tracker;
     const int width = frame.getWidth();
     const int height = frame.getHeight();
-    if (frameType == "IR0" || frameType == "IR1") {
-        mFrameType = "IR";
+    if (type == openni::SensorType::SENSOR_IR) {
         uint16_t *tFrameData = (uint16_t*)frame.getData();
-        mFrame = cv::Mat(height, width, CV_32F);
-        mFrame.forEach<float>([&](float &pixel, const int *position) -> void {
-               int idx = position[0] * width + position[1];
-               pixel = (float)tFrameData[idx];
+        //XXX for some reason the videostream incorrectly reports the dimensions of the frame...
+        mFrame = cv::Mat(424, 512, CV_8UC3);
+        mFrame.forEach<cv::Vec3b>([&](cv::Vec3b &pixel, const int *position) -> void {
+               int tIdx = position[0] * width + position[1];
+               uint8_t value = tFrameData[tIdx] >> 8;
+               pixel[0] = value;
+               pixel[1] = value;
+               pixel[2] = value;
         });
-        mBytesPerPixel = 4;
-    } else if (frameType == "RGB0" || frameType == "RGB1") {
-        mFrameType = "RGB";
+        mBytesPerPixel = 3;
+    } else if (type == openni::SensorType::SENSOR_COLOR) {
         cv::Vec3b *tFrameData = (cv::Vec3b*)frame.getData();
         mFrame = cv::Mat(frame.getHeight(), frame.getWidth(), CV_8UC3);
         mFrame.forEach<cv::Vec3b>([&](cv::Vec3b &pixel, const int *position) -> void {
@@ -36,8 +41,7 @@ Frame::Frame(const std::string &frameType, const openni::VideoFrameRef &frame, n
                pixel = tFrameData[idx];
         });
         mBytesPerPixel = 3;
-    } else if (frameType == "BODY0" || frameType == "BODY1") {
-        mFrameType = "BODY";
+    } else if (type == openni::SensorType::SENSOR_DEPTH) {
         uint16_t *tFrameData = (uint16_t*)frame.getData();
         //mFrame = cv::Mat(height, width, CV_8UC3);
         //XXX for some reason the videostream incorrectly reports the dimensions of the frame...
@@ -51,28 +55,34 @@ Frame::Frame(const std::string &frameType, const openni::VideoFrameRef &frame, n
         });
         mBytesPerPixel = 3;
     } else {
-        std::cerr << "Sensortype not supported!" << std::endl;
+        logger->log(libfreenect2::Logger::Error, "Sensortype not supported!");
         exit(0x0);
+
     }
 }
 
 
-Frame::Frame(const std::string &frameType, const cv::Mat &img)
+Frame::Frame(openni::SensorType type, const cv::Mat &img)
 {
-    mFrameType = frameType;
+    mSensorType = type;
     mUserTracker = NULL;
-    if (frameType == "IR0" || frameType == "IR1") {
-        mFrame = img.clone();
-        mBytesPerPixel = 4;
-    } else if (frameType == "RGB0" || frameType == "RGB1") {
-        mFrame = img.clone();
-        mBytesPerPixel = 3;
-    } else if (frameType == "BODY0" || frameType == "BODY1") {
-        mFrame = img.clone();
-        mBytesPerPixel = 3;
-    } else {
-        std::cerr << "Sensortype not supported!" << std::endl;
-        exit(0x0);
+    switch(type) {
+        case openni::SensorType::SENSOR_IR:
+            mFrame = img.clone();
+            mBytesPerPixel = 3;
+            break;
+        case openni::SensorType::SENSOR_COLOR:
+            mFrame = img.clone();
+            mBytesPerPixel = 3;
+            break;
+        case openni::SensorType::SENSOR_DEPTH:
+            mFrame = img.clone();
+            mBytesPerPixel = 3;
+            break;
+        default:
+            std::cerr << "Sensortype not supported!" << std::endl;
+            exit(0x0);
+            break;
     }
 }
 
@@ -111,9 +121,16 @@ const cv::Mat &Frame::getMat()
     return mFrame;
 }
 
+
 unsigned char *Frame::getData() const
 {
     return mFrame.data;
+}
+
+
+bool Frame::empty() const
+{
+    return mFrame.empty();
 }
 
 
@@ -123,7 +140,7 @@ cv::Point3_<float> Frame::getDepthPixel(int i, int j) const
     if (i < 0 && i >= mFrame.cols && j < 0 && j >= mFrame.rows) {
         return cv::Point3_<float>(0, 0, 0);
     }
-    if (mFrameType == "BODY") {
+    if (mSensorType == openni::SensorType::SENSOR_DEPTH) {
         z = mFrame.at<cv::Point3_<uint8_t>>(j, i).x << 4;
         return cv::Point3_<float>(i, j, z);
     } //IR frame
@@ -152,6 +169,12 @@ cv::Vec3b Frame::getRGBPixel(int i, int j) const
         return cv::Vec3b(0, 0, 0);
     }
     return mFrame.at<cv::Vec3b>(j, i);
+}
+
+
+openni::SensorType Frame::getType()
+{
+    return mSensorType;
 }
 
 
@@ -284,11 +307,11 @@ void Frame::drawFrameAxes(cv::Mat cam, cv::Mat dist, cv::Mat rvec, cv::Mat tvec)
 }
 
 
-void Frame::show()
+void Frame::show(const std::string &title) const
 {
-    cv::imshow("test", mFrame);
+    cv::imshow(title, mFrame);
     cv::waitKey(0);
-    cv::destroyWindow("test");
+    cv::destroyWindow(title);
 }
 
 

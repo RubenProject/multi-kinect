@@ -4,6 +4,7 @@
 #include "frame.h"
 #include "context.h"
 #include "common.h"
+#include "camera.h"
 
 
 class ChessCalib2d 
@@ -19,9 +20,8 @@ public:
     bool calibrateCamera(const int streamIdx);
 
     bool readyCamera(const int streamIdx);
-    void getCamera(glm::dmat3 &K, std::vector<double> &distcoeffs, const int streamIdx);
-    bool loadCamera(const std::string &name, const int streamIdx);
-    bool saveCamera(const std::string &name, const int streamIdx);
+    bool loadCamera(const int streamIdx);
+    bool saveCamera(const int streamIdx);
 
     bool addSampleHomography(std::shared_ptr<Frame> frame0, std::shared_ptr<Frame> &frame1, bool showResult=false);
     bool loadSampleHomography(const std::string &name0, const std::string &name1);
@@ -34,7 +34,7 @@ public:
     bool loadHomography();
     bool saveHomography();
 
-    void test(std::shared_ptr<Frame> rgb_frame, std::shared_ptr<Frame> depth_frame, const int streamIdx);
+    void addRGB2DEPTH(std::shared_ptr<Frame> rgb_frame, std::shared_ptr<Frame> depth_frame, const int streamIdx);
 
 private:
     bool processSampleCamera(std::shared_ptr<Frame> frame, const int streamIdx, bool showResult=false);
@@ -43,16 +43,15 @@ private:
     bool findPoseFromChessboard(std::shared_ptr<Frame> rgb_frame, const cv::Mat &cameraMat, const cv::Mat &dist, 
             cv::Mat &rvec, cv::Mat &tvec);
 
-    cv::Mat mCameraMat0, mCameraMat1;
-    cv::Mat mDistCoeffs0, mDistCoeffs1;
+    //std::array<cv::Mat, KINECT_STREAM_COUNT> mCamera;
+    //std::array<cv::Mat, KINECT_STREAM_COUNT> mDist;
+    std::array<Camera, KINECT_STREAM_COUNT> mCamera;
+    std::array<std::string, KINECT_STREAM_COUNT> mCameraName;
 
-    std::vector<std::vector<cv::Point2f>> mChessCorners0, mChessCorners1;
-    cv::Size imageSize;
+    std::array<std::vector<std::vector<cv::Point2f>>, KINECT_STREAM_COUNT> mChessCorners;
+    cv::Size imageSizeRGB, imageSizeDEPTH;
+    
+    //chessboard dimensions
     cv::Size boardSize;
     float squareEdgeLength;
-
-    glm::dmat3 R;
-    glm::dvec3 t;
-
-    std::ofstream plotfile0, plotfile1;
 };

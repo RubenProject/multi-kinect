@@ -10,18 +10,16 @@
 [Info][Freenect2DeviceImpl] transfer pool sizes rgb: 20*16384 ir: 60*8*33792
 [Info][Freenect2DeviceImpl] opened
 [Info][Freenect2DeviceImpl] starting...
-[Debug][Freenect2DeviceImpl] status 0x090000: 9729
-[Debug][Freenect2DeviceImpl] status 0x090000: 9731
+[Debug][Freenect2DeviceImpl] status 0x090000: 9855
+[Debug][Freenect2DeviceImpl] status 0x090000: 9855
 [Info][Freenect2DeviceImpl] submitting rgb transfers...
 [Info][Freenect2DeviceImpl] submitting depth transfers...
 [Info][Freenect2DeviceImpl] started
-[Debug][DepthPacketStreamParser] not all subsequences received 0
-[Debug][DepthPacketStreamParser] not all subsequences received 1016
-[Debug][DepthPacketStreamParser] skipping depth packet
 [Info][Freenect2DeviceImpl] starting...
-[Info][DepthPacketStreamParser] 1 packets were lost
-[Debug][Freenect2DeviceImpl] status 0x090000: 9729
-[Debug][Freenect2DeviceImpl] status 0x090000: 9731
+[Debug][DepthPacketStreamParser] not all subsequences received 0
+[Debug][DepthPacketStreamParser] skipping depth packet
+[Debug][Freenect2DeviceImpl] status 0x090000: 9855
+[Debug][Freenect2DeviceImpl] status 0x090000: 9855
 [Info][Freenect2DeviceImpl] submitting rgb transfers...
 [Info][Freenect2DeviceImpl] submitting depth transfers...
 [Info][Freenect2DeviceImpl] started
@@ -29,4 +27,6 @@
 [Debug][DepthPacketStreamParser] skipping depth packet
 [Debug][DepthPacketStreamParser] skipping depth packet
 [Info][DepthPacketStreamParser] 1 packets were lost
-[Info][DepthPacketStreamParser] 1 packets were lost
+[Info][DepthPacketStreamParser] 2 packets were lost
+[Info][DepthPacketStreamParser] 7 packets were lost
+[Info][DepthPacketStreamParser] 7 packets were lost
