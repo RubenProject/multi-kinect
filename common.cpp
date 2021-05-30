@@ -132,6 +132,33 @@ void fromWorldToCameraCoordinates(const cv::Mat &rmat, const cv::Mat &tvec, cv::
     p = rmat.inv() * p;
 }
 
+//CV Point 2 CV Mat
+
+void fromPointf2Mat(const cv::Point3f &p, cv::Mat &m)
+{
+    m = cv::Mat(3, 1, CV_64F);
+    m.at<double>(0) = p.x;
+    m.at<double>(1) = p.y;
+    m.at<double>(2) = p.z;
+}
+
+void fromPointf2Mat(const cv::Point3d &p, cv::Mat &m)
+{
+    m = cv::Mat(3, 1, CV_64F);
+    m.at<double>(0) = p.x;
+    m.at<double>(1) = p.y;
+    m.at<double>(2) = p.z;
+}
+
+void fromMat2Pointf(const cv::Mat &m, cv::Point3f &p)
+{
+    p = cv::Point3f(m.at<double>(0), m.at<double>(1), m.at<double>(2));
+}
+
+void fromMat2Pointf(const cv::Mat &m, cv::Point3d &p)
+{
+    p = cv::Point3d(m.at<double>(0), m.at<double>(1), m.at<double>(2));
+}
 
 //CV 2 GLM
  

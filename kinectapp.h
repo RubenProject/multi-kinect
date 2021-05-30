@@ -12,6 +12,8 @@
 #include "context.h"
 #include "logger.h"
 #include "chessboard.h"
+#include "calib2d.h"
+#include "calib3d.h"
 
 class KinectApplication
 {
@@ -37,6 +39,8 @@ private:
     std::shared_ptr<RecordManager> mRecordManager;
     std::shared_ptr<Viewer> mViewer;
     std::shared_ptr<ChessCalib2d> mCalibrator;
+    std::shared_ptr<Calib2d> mCalibrator2d;
+    std::shared_ptr<Calib3d> mCalibrator3d;
 
     std::array<openni::VideoStream, KINECT_STREAM_COUNT> mStreams;
     std::array<std::queue<openni::VideoFrameRef>, KINECT_STREAM_COUNT> mFrames;

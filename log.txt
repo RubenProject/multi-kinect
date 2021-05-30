@@ -1,5 +1,5 @@
 [Info][Freenect2Impl] enumerating devices...
-[Info][Freenect2Impl] 19 usb devices connected
+[Info][Freenect2Impl] 17 usb devices connected
 [Info][Freenect2Impl] found valid Kinect v2 @6:5 with serial 002756160647
 [Info][Freenect2Impl] found valid Kinect v2 @6:4 with serial 002041760847
 [Info][Freenect2Impl] found 2 devices
@@ -26,7 +26,76 @@
 [Debug][DepthPacketStreamParser] not all subsequences received 0
 [Debug][DepthPacketStreamParser] skipping depth packet
 [Debug][DepthPacketStreamParser] skipping depth packet
-[Info][DepthPacketStreamParser] 1 packets were lost
-[Info][DepthPacketStreamParser] 2 packets were lost
-[Info][DepthPacketStreamParser] 7 packets were lost
-[Info][DepthPacketStreamParser] 7 packets were lost
+[Info][DepthPacketStreamParser] 9 packets were lost
+[Info][DepthPacketStreamParser] 8 packets were lost
+[Info][OpenGLDepthPacketProcessor] avg. time: 4.57259ms -> ~218.694Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 4.23037ms -> ~236.386Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 9.7022ms -> ~103.069Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.6575ms -> ~93.8306Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.74429ms -> ~267.073Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.71212ms -> ~269.388Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 9.77535ms -> ~102.298Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 11.0184ms -> ~90.7573Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 4.01974ms -> ~248.772Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.85063ms -> ~259.698Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.0409ms -> ~99.5931Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 11.1377ms -> ~89.7853Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.96136ms -> ~252.438Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.86434ms -> ~258.776Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.3114ms -> ~96.9799Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.661ms -> ~93.8002Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 4.01663ms -> ~248.965Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 4.00487ms -> ~249.696Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.7675ms -> ~92.8724Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.5109ms -> ~95.1393Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 4.07939ms -> ~245.134Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 4.02951ms -> ~248.169Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.6574ms -> ~93.8317Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.5235ms -> ~95.0251Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 4.06337ms -> ~246.101Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.95349ms -> ~252.941Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.8607ms -> ~92.075Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.6015ms -> ~94.326Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.95141ms -> ~253.074Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.92133ms -> ~255.015Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 9.9955ms -> ~100.045Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.7793ms -> ~92.7708Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.87026ms -> ~258.38Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.85841ms -> ~259.174Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.0037ms -> ~99.9628Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.8926ms -> ~91.8056Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.92906ms -> ~254.514Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.89855ms -> ~256.505Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 9.8219ms -> ~101.813Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.2302ms -> ~97.7498Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.93162ms -> ~254.348Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.94523ms -> ~253.471Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 9.47411ms -> ~105.551Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.7276ms -> ~93.2173Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.97261ms -> ~251.723Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 4.00844ms -> ~249.474Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 9.87473ms -> ~101.269Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.1314ms -> ~98.7032Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.95055ms -> ~253.129Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.94128ms -> ~253.725Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.1252ms -> ~98.7635Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.4691ms -> ~95.519Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.87013ms -> ~258.389Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.98783ms -> ~250.763Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 9.8396ms -> ~101.63Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 11.0883ms -> ~90.1856Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.94473ms -> ~253.503Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 4.1378ms -> ~241.674Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 9.92626ms -> ~100.743Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.5352ms -> ~94.92Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.92647ms -> ~254.682Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 4.03143ms -> ~248.051Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.0186ms -> ~99.8146Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.6348ms -> ~94.0313Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.9903ms -> ~250.608Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.88032ms -> ~257.711Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 9.95515ms -> ~100.45Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 10.5684ms -> ~94.6217Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.95399ms -> ~252.909Hz
+[Info][OpenGLDepthPacketProcessor] avg. time: 3.93047ms -> ~254.422Hz
+[Info][TurboJpegRgbPacketProcessor] avg. time: 9.94678ms -> ~100.535Hz

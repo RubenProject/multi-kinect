@@ -1,6 +1,5 @@
 #pragma once
 
-#include "pch.h"
 #include "common.h"
 
 
@@ -25,6 +24,9 @@ public:
 
     void fromCameraToWorldCoordinates(cv::Mat &p);
     void fromWorldToCameraCoordinates(cv::Mat &p);
+
+    void fromCameraToWorldCoordinates(cv::Point3f &p);
+    void fromWorldToCameraCoordinates(cv::Point3f &p);
 
 private:
     //Intrinsic

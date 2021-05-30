@@ -2,6 +2,7 @@
 
 #include "pch.h"
 
+#include "inputstate.h"
 #include "common.h"
 #include "context.h"
 #include "logger.h"
@@ -51,7 +52,10 @@ void KinectApplication::initialize()
 {
     mViewer = std::make_shared<Viewer>();
     mViewer->initialize();
-    mCalibrator = std::make_shared<ChessCalib2d>();
+    //mCalibrator = std::make_shared<ChessCalib2d>();
+
+    mCalibrator2d = std::make_shared<Calib2d>();
+    mCalibrator3d = std::make_shared<Calib3d>();
 
     mStreams[KINECT_COLOR_0].create(mDev[KINECT_ID_0], openni::SENSOR_COLOR);
     mStreams[KINECT_COLOR_1].create(mDev[KINECT_ID_1], openni::SENSOR_COLOR);
@@ -115,9 +119,11 @@ void KinectApplication::initialize()
     //mBodyManager->load(1);
     //mBodyManager->process();
     //context->mStartReplay = true;
+    context->mHomography = true;
 
     // wait to get one frame of each camera...
     sleep(2);
+
 }
 
 
@@ -190,6 +196,7 @@ void KinectApplication::handlePlay()
             openni::SensorType type = mStreamFrameTypes[i];
             nite::UserTracker *tracker = &mUserTrackers[kinectIdx];
             auto frame = std::make_shared<Frame>(type, mFrames[i].front(), tracker);
+            /*
             if (context->mDrawBody && i == KINECT_DEPTH_0 
                 && mBodyManager->getReadyState(KINECT_ID_0)) {
                 const Body &body = mBodyManager->getBody(KINECT_ID_0);
@@ -200,6 +207,7 @@ void KinectApplication::handlePlay()
                 const Body &body = mBodyManager->getBody(KINECT_ID_1);
                 frame->drawSkeleton(body);
             }
+            */
             mViewer->addFrame(frame, kinectIdx);
             mFrames[i].pop();
         }
@@ -221,6 +229,7 @@ void KinectApplication::handleReplay()
 }
 
 
+/*
 bool KinectApplication::handleCameraCalibration(const int streamIdx)
 {
     static uint64_t lastTime[KINECT_STREAM_COUNT] = {getTimeNow(), getTimeNow(), getTimeNow(), getTimeNow()};
@@ -228,21 +237,50 @@ bool KinectApplication::handleCameraCalibration(const int streamIdx)
     const std::string streamName = context->mKinectViewerMap[streamIdx];
     const int kinectIdx = getKinectIdx(streamIdx);
 
-    if (mCalibrator->readyCamera(streamIdx)) {
-        mCalibrator->saveCamera(streamIdx);
+    if (mCalibrator->done_Calibration(streamIdx)) {
         return true;
-    } else if (mCalibrator->calibrateReadyCamera(streamIdx)) {
+    } else if (mCalibrator->ready_Calibration(streamIdx)) {
         stopListeners();
-        mCalibrator->calibrateCamera(streamIdx);
+        mCalibrator->do_Calibration(streamIdx);
         startListeners();
         return false;
-    } else if (mCalibrator->loadSampleCamera(std::to_string(index[streamIdx]), streamIdx)) {
+    } else if (mCalibrator->loadSample_Calibration(std::to_string(index[streamIdx]), streamIdx)) {
         index[streamIdx]++;
         return false;
     } else if (getTimeNow() - lastTime[streamIdx] > 1000) {
         auto frame = mViewer->getFrame(mStreamFrameTypes[streamIdx], kinectIdx);
-        if (mCalibrator->addSampleCamera(frame, streamIdx)) {
-            mCalibrator->saveSampleCamera(frame, std::to_string(index[streamIdx]), streamIdx);
+        if (mCalibrator->addSample_Calibration(frame, streamIdx)) {
+            mCalibrator->saveSample_Calibration(frame, std::to_string(index[streamIdx]), streamIdx);
+            index[streamIdx]++;
+        }
+        lastTime[streamIdx] = getTimeNow();
+        return false;
+    }
+    return false;
+}
+*/
+
+
+bool KinectApplication::handleCameraCalibration(const int streamIdx)
+{
+    static uint64_t lastTime[KINECT_STREAM_COUNT] = {getTimeNow(), getTimeNow(), getTimeNow(), getTimeNow()};
+    static int index[KINECT_STREAM_COUNT] = {0, 0, 0, 0};
+    const int kinectIdx = getKinectIdx(streamIdx);
+
+    if (mCalibrator2d->calibrated(streamIdx)) {
+        return true;
+    } else if (mCalibrator2d->ready(streamIdx)) {
+        stopListeners();
+        mCalibrator2d->calibrate(streamIdx);
+        startListeners();
+        return false;
+    } else if (mCalibrator2d->loadSample(std::to_string(index[streamIdx]), streamIdx)) {
+        index[streamIdx]++;
+        return false;
+    } else if (getTimeNow() - lastTime[streamIdx] > 1000) {
+        auto frame = mViewer->getFrame(mStreamFrameTypes[streamIdx], kinectIdx);
+        if (mCalibrator2d->addSample(frame, streamIdx, false)) {
+            mCalibrator2d->saveSample(frame, std::to_string(index[streamIdx]), streamIdx);
             index[streamIdx]++;
         }
         lastTime[streamIdx] = getTimeNow();
@@ -254,27 +292,6 @@ bool KinectApplication::handleCameraCalibration(const int streamIdx)
 
 void KinectApplication::handleHomography()
 {
-    static uint64_t lastTime = getTimeNow();
-    static int index = 0;
-
-    if (false && mCalibrator->calibrateReadyHomography()) {
-        stopListeners();
-        mCalibrator->calibrateHomography();
-        mCalibrator->saveHomography();
-        startListeners();
-        context->mHomography = false;
-    //} else if (mCalibrator->loadSampleHomography(std::to_string(index), std::to_string(index))) {
-        //index++;
-    } else { //if (getTimeNow() - lastTime > 1000) {
-        std::shared_ptr<Frame> frame0 = mViewer->getFrame(openni::SensorType::SENSOR_COLOR, 0);
-        std::shared_ptr<Frame> frame1 = mViewer->getFrame(openni::SensorType::SENSOR_COLOR, 1);
-
-        if (mCalibrator->addSampleHomography(frame0, frame1, true)) {
-            //mCalibrator->saveSampleHomography(frame0, frame1, std::to_string(index), std::to_string(index));
-            index++;
-        }
-        lastTime = getTimeNow();
-    }
 }
 
 
@@ -284,10 +301,6 @@ bool KinectApplication::update()
 
     if (context->mStartRecord) {
         if (mCalibrator->loadHomography()){
-            glm::dmat3 R;
-            glm::dvec3 t;
-            mCalibrator->getHomography(R, t);
-            mBodyManager->setHomography(R, t);
             logger->log(libfreenect2::Logger::Info, "Starting Recording");
             mViewer->setWindowTitle("Recording");
             mBodyManager->startRecording();
@@ -346,6 +359,7 @@ bool KinectApplication::update()
         handleReplay();
     }
 
+    // calib2d
     if (context->mCamera) {
         mViewer->setWindowTitle("Calibrating Cameras");
         bool calibrated = true;
@@ -366,27 +380,63 @@ bool KinectApplication::update()
         }
     }
 
-    if (getTimeNow() - startTime >= 1000){
+    // calib3d
+    if (context->mHomography) {
+        static bool init = false;
+        if (!init) {
+            Camera cam;
+            mCalibrator2d->getCamera(cam, KINECT_COLOR_0);
+            mCalibrator3d->setCamera(cam, KINECT_COLOR_0);
+
+            mCalibrator2d->getCamera(cam, KINECT_COLOR_1);
+            mCalibrator3d->setCamera(cam, KINECT_COLOR_1);
+
+            mCalibrator2d->getCamera(cam, KINECT_DEPTH_0);
+            mCalibrator3d->setCamera(cam, KINECT_DEPTH_0);
+
+            mCalibrator2d->getCamera(cam, KINECT_DEPTH_1);
+            mCalibrator3d->setCamera(cam, KINECT_DEPTH_1);
+
+            init = true;
+        }
+
         //logger->setLevel(libfreenect2::Logger::None);
         std::shared_ptr<Frame> frame_rgb0 = mViewer->getFrame(openni::SensorType::SENSOR_COLOR, 0);
+        std::shared_ptr<Frame> frame_rgb1 = mViewer->getFrame(openni::SensorType::SENSOR_COLOR, 1);
         std::shared_ptr<Frame> frame_ir0 = mViewer->getFrame(openni::SensorType::SENSOR_IR, 0);
-        mCalibrator->addRGB2DEPTH(frame_rgb0, frame_ir0, 0);
+        std::shared_ptr<Frame> frame_ir1 = mViewer->getFrame(openni::SensorType::SENSOR_IR, 1);
+        static bool found0 = false;
+        static bool found1 = false;
+        static bool found2 = false;
+        if (inputstate->keyspress[GLFW_KEY_W]) {
+            found0 = false;
+            found1 = false;
+            found2 = false;
+        }
 
-        //std::shared_ptr<Frame> frame_rgb1 = mViewer->getFrame(openni::SensorType::SENSOR_COLOR, 1);
-        //std::shared_ptr<Frame> frame_depth1 = mViewer->getFrame(openni::SensorType::SENSOR_DEPTH, 1);
-        //mCalibrator->test(frame_rgb1, frame_depth1, 1);
-        //startTime = getTimeNow();
-    }
+        /*
+        if (!found0){
+            found0 = mCalibrator3d->findExtrinsicRelation(frame_rgb0, KINECT_COLOR_0, frame_ir0, KINECT_DEPTH_0);
+        } else {
+            mCalibrator3d->testExtrinsicRelation(frame_rgb0, KINECT_COLOR_0, frame_ir0, KINECT_DEPTH_0);
+        }
 
-    if (context->mHomography) {
-        mViewer->setWindowTitle("Calibrating Homography");
-        if (!mCalibrator->readyCamera(KINECT_ID_0) 
-            || !mCalibrator->readyCamera(KINECT_ID_1)){
-            context->mHomography = false;
-        } else { 
-            handleHomography();
+        if (!found1) {
+            found1 = mCalibrator3d->findExtrinsicRelation(frame_rgb1, KINECT_COLOR_1, frame_ir1, KINECT_DEPTH_1);
+        } else {
+            mCalibrator3d->testExtrinsicRelation(frame_rgb1, KINECT_COLOR_1, frame_ir1, KINECT_DEPTH_1);
+        }
+        */
+
+        if (!found2) {
+            found2 = mCalibrator3d->findExtrinsicRelation(frame_rgb0, KINECT_COLOR_0, frame_rgb1, KINECT_COLOR_1);
+        } else {
+            mCalibrator3d->testExtrinsicRelation(frame_rgb0, KINECT_COLOR_0, frame_rgb1, KINECT_COLOR_1);
         }
     }
+
+    //all events handled, reset
+    inputstate->reset();
 
     return context->mExit || mViewer->render();
 }

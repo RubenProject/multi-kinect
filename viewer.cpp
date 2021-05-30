@@ -1,5 +1,6 @@
 #include "viewer.h"
 
+#include "inputstate.h"
 #include "logger.h"
 
 
@@ -161,6 +162,14 @@ void Viewer::key_callbackstatic(GLFWwindow* window, int key, int scancode, int a
 
 void Viewer::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+    if (action == GLFW_PRESS) {
+        inputstate->keysdown[key] = true;
+        inputstate->keyspress[key] = true;
+    }
+    if (action == GLFW_RELEASE) {
+        inputstate->keysdown[key] = false;
+    }
+
     //EXIT
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         context->mExit = true;

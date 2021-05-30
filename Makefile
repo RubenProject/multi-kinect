@@ -11,7 +11,7 @@ LIBS = -L$(ROOT_DIR) -lNiTE2 -lOpenNI2 -lglfw -lGL -lfreenect2 -lopencv_core \
 OBJS = flextGL.o viewer.o main.o framelistener.o \
 	   kinectapp.o frame.o body.o camera.o \
 	   bodymanager.o bodylistener.o recordmanager.o \
-	   common.o chessboard.o logger.o
+	   common.o chessboard.o logger.o calib2d.o calib3d.o
 
 .PHONY: all run KinectApp
 
@@ -59,6 +59,12 @@ logger.o: logger.cpp
 
 camera.o: camera.cpp
 	 $(CC) -c $(CFLAGS) camera.cpp $(LIBS)
+
+calib2d.o: calib2d.cpp
+	 $(CC) -c $(CFLAGS) calib2d.cpp $(LIBS)
+
+calib3d.o: calib3d.cpp
+	 $(CC) -c $(CFLAGS) calib3d.cpp $(LIBS)
 
 all: KinectApp
 

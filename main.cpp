@@ -2,6 +2,7 @@
 #include "context.h"
 #include "common.h"
 #include "camera.h"
+#include "inputstate.h"
 #include "pch.h"
 
 # define pi           3.14159265358979323846  /* pi */
@@ -9,15 +10,11 @@
 KinectApplication *app;
 Context *context;
 Logger *logger;
+InputState *inputstate;
 
 
 int main()
 {
-    size_t bin = 0b0001;
-    std::cout << bin << std::endl;
-    exit(0x0);
-
-
 /*
 
 
@@ -79,7 +76,9 @@ int main()
 
     context = new Context();
     logger = new Logger("log.txt");
+    inputstate = new InputState();
     app = new KinectApplication();
+
 
     app->initialize();
 

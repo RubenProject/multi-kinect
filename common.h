@@ -126,6 +126,12 @@ namespace YAML {
         }
     };
 }
+//CV Point 2 CV Mat
+
+void fromPointf2Mat(const cv::Point3f &p, cv::Mat &m);
+void fromPointf2Mat(const cv::Point3d &p, cv::Mat &m);
+void fromMat2Pointf(const cv::Mat &m, cv::Point3f &p);
+void fromMat2Pointf(const cv::Mat &m, cv::Point3d &p);
 
 //CV 2 GLM
 

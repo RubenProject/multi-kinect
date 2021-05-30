@@ -53,13 +53,13 @@ void Camera::setExtrinsics(const cv::Mat &rvec, const cv::Mat &tvec)
 
 void Camera::getCameraMatrix(cv::Mat &K)
 {
-    K = this->K;
+    K = this->K.clone();
 }
 
 
 void Camera::getDistortion(cv::Mat &dist)
 {
-    K = this->dist;
+    dist = this->dist.clone();
 }
 
 
@@ -91,8 +91,10 @@ bool Camera::loadCamera(const std::string &name)
                                  0.0, fy,  cy,
                                  0.0, 0.0, 1.0};
 
-    K = cv::Mat(3, 3, CV_64F, data);
-    dist = cv::Mat(distvec);
+    K = cv::Mat(3, 3, CV_64F, data).clone();
+    dist = cv::Mat(distvec).clone();
+    state |= 0b0001; 
+    return true;
 }
 
 
@@ -103,6 +105,7 @@ bool Camera::saveCamera(const std::string &name)
     node["fy"] = K.at<double>(1, 1);
     node["cx"] = K.at<double>(0, 2);
     node["cy"] = K.at<double>(1, 2);
+
     for (int i = 0; i < dist.rows; i++){
         node["dist"].push_back(dist.at<double>(i, 0));
     }
@@ -129,3 +132,16 @@ void Camera::fromWorldToCameraCoordinates(cv::Mat &p)
     p = rmat.inv() * p;
 }
 
+
+void Camera::fromCameraToWorldCoordinates(cv::Point3f &p)
+{
+    //p = rmat * p;
+    //p = p + tvec;
+}
+
+
+void Camera::fromWorldToCameraCoordinates(cv::Point3f &p)
+{
+    //p = p - tvec;
+    //p = rmat.inv() * p;
+}
